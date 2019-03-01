@@ -2,6 +2,13 @@
 # Source files
 #-------------------------------------------------------------------------
 
+bsg_newlib_fs_srcs = \
+	bsg_newlib_fs/bsg_newlib_fs.c \
+	bsg_newlib_fs/bsg_newlib_fdtable.c \
+	bsg_newlib_fs/littlefs/lfs/lfs.c \
+	bsg_newlib_fs/littlefs/lfs/lfs_util.c \
+	bsg_newlib_fs/littlefs/bd/lfs_bd.c
+
 gloss_hdrs = \
 	machine/syscall.h \
 
@@ -38,7 +45,8 @@ gloss_srcs = \
 	sys_unlink.c \
 	sys_utime.c \
 	sys_wait.c \
-	sys_write.c 
+	sys_write.c \
+	$(bsg_newlib_fs_srcs)
 
 gloss_specs = \
 	nano.specs sim.specs
