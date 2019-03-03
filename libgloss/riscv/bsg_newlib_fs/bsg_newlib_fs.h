@@ -1,19 +1,17 @@
 #ifndef BSG_NEWLIB_FS_H
 #define BSG_NEWLIB_FS_H
 
-#include "littlefs/lfs/lfs.h"
+#include "lfs.h"
 
-// Following macros must be defined to specify the filesystem parameters. Can be
-// defined as compile time options
-#ifndef BSG_NEWLIB_FS_PTR
-#error "File system address must be provided: define the macro BSG_NEWLIB_FS_PTR"
-#endif
-#ifndef BSG_NEWLIB_FS_BLOCK_SIZE
-#error "File system block size must be provided: define the macro BSG_NEWLIB_FS_BLOCK_SIZE"
-#endif
-#ifndef BSG_NEWLIB_FS_BLOCK_COUNT
-#error "File system block count must be provided: define the macro BSG_NEWLIB_FS_BLOCK_COUNT"
-#endif
+// Toplevel filesystem struct
+// File system must be mounted to this struct by crt before calling main
+extern lfs_t bsg_newlib_fs;
+
+// File system configuration structure
+// Defined by the library based on above macros
+extern struct lfs_config bsg_newlib_fs_cfg;
+
+extern struct lfs_file_config bsg_newlib_file_cfg;
 
 // These macros define cache sizes for file system operations.
 // Can be tweaked to improve file system performace
@@ -27,12 +25,12 @@
 #define BSG_NEWLIB_FS_LOOKAHEAD 32
 #endif
 
-// Toplevel filesystem struct
-// File system must be mounted to this struct before calling main
-extern lfs_t bsg_newlib_lfs;
-
-// File system configuration structure
-// Defined by the library based on above macros
-extern const struct lfs_config bsg_newlib_lfs_cfg;
+// File system size parameters
+#ifndef BSG_NEWLIB_FS_BLOCK_SIZE
+#define BSG_NEWLIB_FS_BLOCK_SIZE 128
+#endif
+#ifndef BSG_NEWLIB_FS_BLOCK_COUNT
+#define BSG_NEWLIB_FS_BLOCK_COUNT 16
+#endif
 
 #endif // BSG_NEWLIB_FS_H
