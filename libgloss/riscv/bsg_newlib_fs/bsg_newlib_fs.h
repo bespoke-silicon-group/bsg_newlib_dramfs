@@ -11,8 +11,6 @@ extern lfs_t bsg_newlib_fs;
 // Defined by the library based on above macros
 extern struct lfs_config bsg_newlib_fs_cfg;
 
-extern struct lfs_file_config bsg_newlib_file_cfg;
-
 // These macros define cache sizes for file system operations.
 // Can be tweaked to improve file system performace
 #ifndef BSG_NEWLIB_FS_READ_SIZE
