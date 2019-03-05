@@ -139,7 +139,7 @@ junk += $(bsg_newlib_fs_objs)
 
 CC            := @CC@
 CFLAGS        := @CFLAGS@
-CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs)
+CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs) -Dbsg_tiles_X=1 -Dbsg_tiles_Y=2
 COMPILE       := $(CC) -MMD -MP $(CPPFLAGS) $(CFLAGS)
 
 # Library creation

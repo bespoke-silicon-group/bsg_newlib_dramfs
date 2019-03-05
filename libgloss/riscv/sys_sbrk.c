@@ -1,7 +1,8 @@
-#ifdef USING_SIM_SPECS
+// Dynamic allocation in the dram
+// TODO: add mutex
+extern char _bsg_dram_end_addr[]; /* _bsg_data_end_addr is set in the linker command file */
 
-// Gdb simulator requires that sbrk be implemented without a syscall.
-extern char _end[];                /* _end is set in the linker command file */
+char *_end = _bsg_dram_end_addr;
 char *heap_ptr;
 
 /*
@@ -16,41 +17,9 @@ _sbrk (nbytes)
   char        *base;
 
   if (!heap_ptr)
-    heap_ptr = (char *)&_end;
+    heap_ptr = (char *) _end;
   base = heap_ptr;
   heap_ptr += nbytes;
 
   return base;
 }
-
-#else
-
-// QEMU uses a syscall.
-#include <machine/syscall.h>
-#include <sys/types.h>
-#include "internal_syscall.h"
-
-/* Increase program data space. As malloc and related functions depend
-   on this, it is useful to have a working implementation. The following
-   is suggested by the newlib docs and suffices for a standalone
-   system.  */
-void *
-_sbrk(ptrdiff_t incr)
-{
-  static unsigned long heap_end;
-
-  if (heap_end == 0)
-    {
-      long brk = syscall_errno (SYS_brk, 0, 0, 0, 0, 0, 0);
-      if (brk == -1)
-	return (void *)-1;
-      heap_end = brk;
-    }
-
-  if (syscall_errno (SYS_brk, heap_end + incr, 0, 0, 0, 0, 0) != heap_end + incr)
-    return (void *)-1;
-
-  heap_end += incr;
-  return (void *)(heap_end - incr);
-}
-#endif
