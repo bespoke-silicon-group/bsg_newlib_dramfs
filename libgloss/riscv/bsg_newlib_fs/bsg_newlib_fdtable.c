@@ -36,7 +36,11 @@ lfs_file_t *bsg_newlib_get_file(int fd) {
 }
 
 int bsg_newlib_free_fd(int fd) {
-  lfs_file_t *fptr = bsg_newlib_get_file(fd);
-  bsg_newlib_fdtable[fd].used = 0;
-  return lfs_file_close(&bsg_newlib_fs, fptr);
+  if (bsg_newlib_fdtable[fd].used == 1) {
+    lfs_file_t *fptr = bsg_newlib_get_file(fd);
+    bsg_newlib_fdtable[fd].used = 0;
+    return lfs_file_close(&bsg_newlib_fs, fptr);
+  } else {
+    return 0;
+  }
 }
