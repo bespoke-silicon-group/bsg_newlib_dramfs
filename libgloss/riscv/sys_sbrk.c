@@ -2,8 +2,7 @@
 // TODO: add mutex
 extern char _bsg_dram_end_addr[]; /* _bsg_data_end_addr is set in the linker command file */
 
-char *_end = _bsg_dram_end_addr;
-char *heap_ptr;
+char *heap_ptr = _bsg_dram_end_addr;
 
 /*
  * sbrk -- changes heap size size. Get nbytes more
@@ -15,9 +14,7 @@ _sbrk (nbytes)
      int nbytes;
 {
   char        *base;
-
-  if (!heap_ptr)
-    heap_ptr = (char *) _end;
+  
   base = heap_ptr;
   heap_ptr += nbytes;
 
