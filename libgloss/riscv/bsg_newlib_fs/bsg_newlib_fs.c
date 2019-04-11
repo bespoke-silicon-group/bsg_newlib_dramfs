@@ -6,10 +6,10 @@
 // Data mem allocation for FS
 uint8_t lfs_mem[BSG_NEWLIB_FS_BLOCK_SIZE*BSG_NEWLIB_FS_BLOCK_COUNT] __attribute__ ((section (".dram")));
 
+lfs_t bsg_newlib_fs __attribute__ ((section (".dram")));
+
 // File system memory pointer
 uint8_t *lfs_ptr = lfs_mem;
-
-lfs_t bsg_newlib_fs;
 
 // LFS configuration
 struct lfs_config bsg_newlib_fs_cfg = {
