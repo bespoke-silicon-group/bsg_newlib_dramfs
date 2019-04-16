@@ -182,42 +182,6 @@ dup3 (int oldfd, int newfd, int flags)
   return res;
 }
 
-/* Define macro to simplify checking for a transactional error code. */
-#define NT_TRANSACTIONAL_ERROR(s)	\
-		(((ULONG)(s) >= (ULONG)STATUS_TRANSACTIONAL_CONFLICT) \
-		 && ((ULONG)(s) <= (ULONG)STATUS_TRANSACTION_NOT_ENLISTED))
-
-static inline void
-start_transaction (HANDLE &old_trans, HANDLE &trans)
-{
-  NTSTATUS status = NtCreateTransaction (&trans,
-				SYNCHRONIZE | TRANSACTION_ALL_ACCESS,
-				NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
-  if (NT_SUCCESS (status))
-    {
-      old_trans = RtlGetCurrentTransaction ();
-      RtlSetCurrentTransaction (trans);
-    }
-  else
-    {
-      debug_printf ("NtCreateTransaction failed, %y", status);
-      old_trans = trans = NULL;
-    }
-}
-
-static inline NTSTATUS
-stop_transaction (NTSTATUS status, HANDLE old_trans, HANDLE &trans)
-{
-  RtlSetCurrentTransaction (old_trans);
-  if (NT_SUCCESS (status))
-    status = NtCommitTransaction (trans, TRUE);
-  else
-    status = NtRollbackTransaction (trans, TRUE);
-  NtClose (trans);
-  trans = NULL;
-  return status;
-}
-
 static const char desktop_ini[] =
   "[.ShellClassInfo]\r\n"
   "CLSID={645FF040-5081-101B-9F08-00AA002F954E}\r\n"
@@ -694,23 +658,64 @@ unlink_nt (path_conv &pc)
   HANDLE fh, fh_ro = NULL;
   OBJECT_ATTRIBUTES attr;
   IO_STATUS_BLOCK io;
+  ACCESS_MASK access = DELETE;
+  ULONG flags = FILE_OPEN_FOR_BACKUP_INTENT;
   HANDLE old_trans = NULL, trans = NULL;
   ULONG num_links = 1;
   FILE_DISPOSITION_INFORMATION disp = { TRUE };
   int reopened = 0;
-
   bin_status bin_stat = dont_move;
 
   syscall_printf ("Trying to delete %S, isdir = %d",
 		  pc.get_nt_native_path (), pc.isdir ());
-  ACCESS_MASK access = DELETE;
-  ULONG flags = FILE_OPEN_FOR_BACKUP_INTENT;
-  /* Add the reparse point flag to native symlinks, otherwise we remove the
-     target, not the symlink. */
-  if (pc.is_rep_symlink ())
+
+  /* Add the reparse point flag to known reparse points, otherwise we remove
+     the target, not the reparse point. */
+  if (pc.is_known_reparse_point ())
     flags |= FILE_OPEN_REPARSE_POINT;
 
   pc.get_object_attr (attr, sec_none_nih);
+
+  /* First check if we can use POSIX unlink semantics: W10 1709++, local NTFS.
+     With POSIX unlink semantics the entire job gets MUCH easier and faster.
+     Just try to do it and if it fails, it fails. */
+  if (wincap.has_posix_file_info () && !pc.isremote () && pc.fs_is_ntfs ())
+    {
+      FILE_DISPOSITION_INFORMATION_EX fdie;
+
+      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+	access |= FILE_WRITE_ATTRIBUTES;
+      status = NtOpenFile (&fh, access, &attr, &io, FILE_SHARE_VALID_FLAGS,
+			   flags);
+      if (!NT_SUCCESS (status))
+	goto out;
+      /* Why didn't the devs add a FILE_DELETE_IGNORE_READONLY_ATTRIBUTE
+	 flag just like they did with FILE_LINK_IGNORE_READONLY_ATTRIBUTE
+	 and FILE_LINK_IGNORE_READONLY_ATTRIBUTE???
+
+         POSIX unlink semantics are nice, but they still fail if the file
+	 has the R/O attribute set.  Removing the file is very much a safe
+	 bet afterwards, so, no transaction. */
+      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+	{
+	  status = NtSetAttributesFile (fh, pc.file_attributes ()
+					    & ~FILE_ATTRIBUTE_READONLY);
+	  if (!NT_SUCCESS (status))
+	    {
+	      NtClose (fh);
+	      goto out;
+	    }
+	}
+      fdie.Flags = FILE_DISPOSITION_DELETE | FILE_DISPOSITION_POSIX_SEMANTICS;
+      status = NtSetInformationFile (fh, &io, &fdie, sizeof fdie,
+				     FileDispositionInformationEx);
+      /* Restore R/O attribute in case we have multiple hardlinks. */
+      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+	NtSetAttributesFile (fh, pc.file_attributes ());
+      NtClose (fh);
+      goto out;
+    }
+
   /* If the R/O attribute is set, we have to open the file with
      FILE_WRITE_ATTRIBUTES to be able to remove this flags before trying
      to delete it.  We do this separately because there are filesystems
@@ -1462,7 +1467,46 @@ open (const char *unix_path, int flags, ...)
       if ((fh->is_fs_special () && fh->device_access_denied (flags))
 	  || !fh->open_with_arch (flags, mode & 07777))
 	__leave;		/* errno already set */
+#if 0
+      /* Don't use W10 1709 POSIX unlink semantics here.
 
+	 Including W10 1809, NtSetInformationFile(FileLinkInformation) on a
+	 HANDLE to a file unlinked with POSIX semantics fails with
+	 STATUS_ACCESS_DENIED.  Trying to remove the delete disposition on
+	 the file prior to calling link fails with STATUS_FILE_DELETED.
+	 This breaks
+
+	   fd = open(O_TMPFILE);
+	   linkat("/proc/self/fd/<fd>);
+
+	  semantics. */
+      if ((flags & O_TMPFILE) && wincap.has_posix_file_info ()
+	  && !fh->pc.isremote () && fh->pc.fs_is_ntfs ())
+	{
+	  HANDLE del_h;
+	  OBJECT_ATTRIBUTES attr;
+	  NTSTATUS status;
+	  IO_STATUS_BLOCK io;
+	  FILE_DISPOSITION_INFORMATION_EX fdie;
+
+	  status = NtOpenFile (&del_h, DELETE,
+		       fh->pc.init_reopen_attr (attr, fh->get_handle ()), &io,
+		       FILE_SHARE_VALID_FLAGS, FILE_OPEN_FOR_BACKUP_INTENT);
+	  if (!NT_SUCCESS (status))
+	    debug_printf ("reopening tmpfile handle failed, status %y", status);
+	  else
+	    {
+	      fdie.Flags = FILE_DISPOSITION_DELETE
+			   | FILE_DISPOSITION_POSIX_SEMANTICS;
+	      status = NtSetInformationFile (del_h, &io, &fdie, sizeof fdie,
+					     FileDispositionInformationEx);
+	      if (!NT_SUCCESS (status))
+		debug_printf ("Setting POSIX delete disposition on tmpfile "
+			      "failed, status = %y", status);
+	      NtClose (del_h);
+	    }
+	}
+#endif
       fd = fh;
       if (fd <= 2)
 	set_std_handle (fd);
@@ -2477,7 +2521,8 @@ rename2 (const char *oldpath, const char *newpath, unsigned int flags)
 	ULONG sharing = FILE_SHARE_READ | FILE_SHARE_WRITE
 			| (oldpc.fs_is_samba () ? 0 : FILE_SHARE_DELETE);
 	ULONG flags = FILE_OPEN_FOR_BACKUP_INTENT
-		      | (oldpc.is_rep_symlink () ? FILE_OPEN_REPARSE_POINT : 0);
+		      | (oldpc.is_known_reparse_point ()
+			 ? FILE_OPEN_REPARSE_POINT : 0);
 	status = NtOpenFile (&fh, access,
 			     oldpc.get_object_attr (attr, sec_none_nih),
 			     &io, sharing, flags);
@@ -2541,7 +2586,7 @@ rename2 (const char *oldpath, const char *newpath, unsigned int flags)
 			       dstpc->get_object_attr (attr, sec_none_nih),
 			       &io, FILE_SHARE_VALID_FLAGS,
 			       FILE_OPEN_FOR_BACKUP_INTENT
-			       | (dstpc->is_rep_symlink ()
+			       | (dstpc->is_known_reparse_point ()
 				  ? FILE_OPEN_REPARSE_POINT : 0));
 	  if (!NT_SUCCESS (status))
 	    {
@@ -2575,7 +2620,7 @@ rename2 (const char *oldpath, const char *newpath, unsigned int flags)
 		     (removepc ?: dstpc)->get_object_attr (attr, sec_none_nih),
 		     &io, FILE_SHARE_VALID_FLAGS,
 		     FILE_OPEN_FOR_BACKUP_INTENT
-		     | ((removepc ?: dstpc)->is_rep_symlink ()
+		     | ((removepc ?: dstpc)->is_known_reparse_point ()
 			? FILE_OPEN_REPARSE_POINT : 0))))
 	{
 	  FILE_INTERNAL_INFORMATION ofii, nfii;
@@ -2651,7 +2696,7 @@ rename2 (const char *oldpath, const char *newpath, unsigned int flags)
 				     oldpc.get_object_attr (attr, sec_none_nih),
 				     &io, FILE_SHARE_VALID_FLAGS,
 				     FILE_OPEN_FOR_BACKUP_INTENT
-				     | (oldpc.is_rep_symlink ()
+				     | (oldpc.is_known_reparse_point ()
 					? FILE_OPEN_REPARSE_POINT : 0));
 	      if (NT_SUCCESS (status))
 		{

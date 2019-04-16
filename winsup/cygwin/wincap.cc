@@ -8,6 +8,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 #include "winsup.h"
+#include "miscfuncs.h"
 #include "security.h"
 #include "ntdll.h"
 
@@ -32,6 +33,10 @@ wincaps wincap_vista __attribute__((section (".cygwin_dll_common"), shared)) = {
     has_new_pebteb_region:false,
     has_broken_whoami:true,
     has_unprivileged_createsymlink:false,
+    has_unbiased_interrupt_time:false,
+    has_precise_interrupt_time:false,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
   },
 };
 
@@ -50,6 +55,10 @@ wincaps wincap_7 __attribute__((section (".cygwin_dll_common"), shared)) = {
     has_new_pebteb_region:false,
     has_broken_whoami:true,
     has_unprivileged_createsymlink:false,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:false,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
   },
 };
 
@@ -68,10 +77,14 @@ wincaps wincap_8 __attribute__((section (".cygwin_dll_common"), shared)) = {
     has_new_pebteb_region:false,
     has_broken_whoami:false,
     has_unprivileged_createsymlink:false,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:false,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
   },
 };
 
-wincaps wincap_10 __attribute__((section (".cygwin_dll_common"), shared)) = {
+wincaps  wincap_10_1507 __attribute__((section (".cygwin_dll_common"), shared)) = {
   def_guard_pages:2,
   {
     is_server:false,
@@ -86,6 +99,10 @@ wincaps wincap_10 __attribute__((section (".cygwin_dll_common"), shared)) = {
     has_new_pebteb_region:false,
     has_broken_whoami:false,
     has_unprivileged_createsymlink:false,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:true,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
   },
 };
 
@@ -104,6 +121,10 @@ wincaps wincap_10_1511 __attribute__((section (".cygwin_dll_common"), shared)) =
     has_new_pebteb_region:true,
     has_broken_whoami:false,
     has_unprivileged_createsymlink:false,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:true,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
   },
 };
 
@@ -122,6 +143,54 @@ wincaps wincap_10_1703 __attribute__((section (".cygwin_dll_common"), shared)) =
     has_new_pebteb_region:true,
     has_broken_whoami:false,
     has_unprivileged_createsymlink:true,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:true,
+    has_posix_file_info:false,
+    has_case_sensitive_dirs:false,
+  },
+};
+
+wincaps wincap_10_1709 __attribute__((section (".cygwin_dll_common"), shared)) = {
+  def_guard_pages:2,
+  {
+    is_server:false,
+    needs_count_in_si_lpres2:false,
+    has_gaa_largeaddress_bug:false,
+    has_broken_alloc_console:true,
+    has_console_logon_sid:true,
+    has_precise_system_time:true,
+    has_microsoft_accounts:true,
+    has_processor_groups:true,
+    has_broken_prefetchvm:false,
+    has_new_pebteb_region:true,
+    has_broken_whoami:false,
+    has_unprivileged_createsymlink:true,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:true,
+    has_posix_file_info:true,
+    has_case_sensitive_dirs:false,
+  },
+};
+
+wincaps wincap_10_1803 __attribute__((section (".cygwin_dll_common"), shared)) = {
+  def_guard_pages:2,
+  {
+    is_server:false,
+    needs_count_in_si_lpres2:false,
+    has_gaa_largeaddress_bug:false,
+    has_broken_alloc_console:true,
+    has_console_logon_sid:true,
+    has_precise_system_time:true,
+    has_microsoft_accounts:true,
+    has_processor_groups:true,
+    has_broken_prefetchvm:false,
+    has_new_pebteb_region:true,
+    has_broken_whoami:false,
+    has_unprivileged_createsymlink:true,
+    has_unbiased_interrupt_time:true,
+    has_precise_interrupt_time:true,
+    has_posix_file_info:true,
+    has_case_sensitive_dirs:true,
   },
 };
 
@@ -159,18 +228,22 @@ wincapc::init ()
 	      caps = &wincap_8;
 	      break;
 	    default:
-	      caps = &wincap_10;
+	      caps = &wincap_10_1507;
 	      break;
 	  }
 	break;
       case 10:
       default:
-	if (version.dwBuildNumber < 10586)
-	  caps = &wincap_10;
-	else if (version.dwBuildNumber < 15063)
+	if (likely (version.dwBuildNumber >= 17134))
+	  caps = &wincap_10_1803;
+	else if (version.dwBuildNumber >= 16299)
+	  caps = &wincap_10_1709;
+	else if (version.dwBuildNumber >= 15063)
+	  caps = &wincap_10_1703;
+	else if (version.dwBuildNumber >= 10586)
 	  caps = &wincap_10_1511;
 	else
-	  caps = &wincap_10_1703;
+	  caps = & wincap_10_1507;
     }
 
   ((wincaps *)caps)->is_server = (version.wProductType != VER_NT_WORKSTATION);

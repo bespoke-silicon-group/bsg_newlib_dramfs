@@ -27,6 +27,10 @@ struct wincaps
     unsigned has_new_pebteb_region		: 1;
     unsigned has_broken_whoami			: 1;
     unsigned has_unprivileged_createsymlink	: 1;
+    unsigned has_unbiased_interrupt_time	: 1;
+    unsigned has_precise_interrupt_time		: 1;
+    unsigned has_posix_file_info		: 1;
+    unsigned has_case_sensitive_dirs		: 1;
   };
 };
 
@@ -42,6 +46,11 @@ public:
   void init ();
 
   const DWORD cpu_count () const { return system_info.dwNumberOfProcessors; }
+  const DWORD_PTR cpu_mask () const { return system_info.dwActiveProcessorMask;}
+
+  const WORD cpu_arch () const { return system_info.wProcessorArchitecture; }
+  const WORD cpu_level () const { return system_info.wProcessorLevel; }
+
   /* The casts to size_t make sure that the returned value has the size of
      a pointer on any system.  This is important when using them for bit
      mask operations, like in roundup2. */
@@ -69,7 +78,15 @@ public:
   bool	IMPLEMENT (has_new_pebteb_region)
   bool	IMPLEMENT (has_broken_whoami)
   bool	IMPLEMENT (has_unprivileged_createsymlink)
+  bool	IMPLEMENT (has_unbiased_interrupt_time)
+  bool	IMPLEMENT (has_precise_interrupt_time)
+  bool	IMPLEMENT (has_posix_file_info)
+  bool	IMPLEMENT (has_case_sensitive_dirs)
 
+  void disable_case_sensitive_dirs ()
+  {
+    ((wincaps *)caps)->has_case_sensitive_dirs = false;
+  }
 #undef IMPLEMENT
 };
 

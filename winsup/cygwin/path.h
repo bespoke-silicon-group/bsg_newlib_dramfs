@@ -183,7 +183,7 @@ class path_conv
   }
   int issymlink () const {return path_flags & PATH_SYMLINK;}
   int is_lnk_symlink () const {return path_flags & PATH_LNK;}
-  int is_rep_symlink () const {return path_flags & PATH_REP;}
+  int is_known_reparse_point () const {return path_flags & PATH_REP;}
   int isdevice () const {return dev.not_device (FH_FS) && dev.not_device (FH_FIFO);}
   int isfifo () const {return dev.is_device (FH_FIFO);}
   int isspecial () const {return dev.not_device (FH_FS);}
@@ -192,7 +192,12 @@ class path_conv
   int is_fs_device () const {return isdevice () && is_fs_special ();}
   int is_fs_special () const {return dev.is_fs_special ();}
   int is_lnk_special () const {return is_fs_device () || isfifo () || is_lnk_symlink ();}
-  int issocket () const {return dev.is_device (FH_UNIX);}
+#ifdef __WITH_AF_UNIX
+  int issocket () const {return dev.is_device (FH_LOCAL)
+				|| dev.is_device (FH_UNIX);}
+#else
+  int issocket () const {return dev.is_device (FH_LOCAL);}
+#endif /* __WITH_AF_UNIX */
   int iscygexec () const {return path_flags & PATH_CYGWIN_EXEC;}
   int isopen () const {return path_flags & PATH_OPEN;}
   int isctty_capable () const {return path_flags & PATH_CTTY;}
@@ -364,6 +369,8 @@ class path_conv
   DWORD fs_name_len () const {return fs.name_len ();}
   bool fs_got_fs () const { return fs.got_fs (); }
   bool fs_is_fat () const {return fs.is_fat ();}
+  bool fs_is_exfat () const {return fs.is_exfat ();}
+  bool fs_is_any_fat () const {return fs.is_fat () || fs.is_exfat ();}
   bool fs_is_ntfs () const {return fs.is_ntfs ();}
   bool fs_is_refs () const {return fs.is_refs ();}
   bool fs_is_samba () const {return fs.is_samba ();}

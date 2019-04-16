@@ -4,6 +4,102 @@
 
 <sect1 id="ov-new"><title>What's new and what changed in Cygwin</title>
 
+<sect2 id="ov-new2.12"><title>What's new and what changed in 2.12</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+Support for CLOCK_REALTIME_COARSE, CLOCK_MONOTONIC_COARSE,
+CLOCK_MONOTONIC_RAW, CLOCK_BOOTTIME clocks.
+</para></listitem>
+
+<listitem><para>
+Support for case sensitive directories.  mkdir(2) automatically creates
+directories within the Cygwin installation dir as case sensitive
+now.</para>
+
+<para>This feature requires Windows 10 1803 or later and WSL installed!
+</para></listitem>
+
+<listitem><para>
+New file ioctls's FS_IOC_GETFLAGS and FS_IOC_SETFLAGS.  The actual inode
+flags are Cygwin-specific.  This allows to set or reset DOS attributes,
+file sparseness, FS level encryption and compression, as well as
+directory case sensitivity programatically.
+</para></listitem>
+
+<listitem><para>
+New tools chattr(1) and lsattr(1) to utilize setting and viewing the
+aforementioned new ioctl's on the command line.
+</para></listitem>
+
+<listitem><para>
+Support for exFAT.
+</para></listitem>
+
+<listitem><para>
+clock_nanosleep, pthread_condattr_setclock and timer_create now support
+all clocks, except CLOCK_PROCESS_CPUTIME_ID and CLOCK_THREAD_CPUTIME_ID.
+</para></listitem>
+
+<listitem><para>
+clock_setres is a no-op now.
+</para></listitem>
+
+<listitem><para>
+Use the new POSIX unlink semantics on NTFS starting with Windows 10
+1709.  Deleting an in-use file now actually removes the file, rather
+than moving it to the recycler bin.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new2.11"><title>What's new and what changed in 2.11</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+SO_RCVTIMEO and SO_SNDTIMEO socket options are now honored.
+</para></listitem>
+
+<listitem><para>
+/proc/cpuinfo now reports L3 cache size on Intel CPUs.
+</para></listitem>
+
+<listitem><para>
+New APIs: clearenv, pthread_tryjoin_np, pthread_timedjoin_np, sched_getcpu.
+</para></listitem>
+
+<listitem><para>
+New APIs for POSIX Asynchronous I/O: aio_cancel, aio_error, aio_fsync,
+aio_read, aio_return, aio_suspend, aio_write, lio_listio.
+New Header: &lt;aio.h&gt;.
+</para></listitem>
+
+<listitem><para>
+Drop denormal-operand exception from FE_ALL_EXCEPT, as on Linux.
+</para></listitem>
+
+<listitem><para>
+Rename the --file option of setfacl(1) to --set-file, as on Linux.
+</para></listitem>
+
+<listitem><para>
+Support Unicode 10.
+</para></listitem>
+
+<listitem><para>
+Following glibc, `union wait' has now been removed.  Applications
+using union wait and these macros will have to migrate to the
+POSIX-specified int status type.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
 <sect2 id="ov-new2.10"><title>What's new and what changed in 2.10</title>
 
 <itemizedlist mark="bullet">
@@ -17,7 +113,32 @@ scanf/wscanf now handle the POSIX %m modifier.
 </para></listitem>
 
 <listitem><para>
-- scanf now handles the %l[ conversion.
+scanf now handles the %l[ conversion.
+</para></listitem>
+
+<listitem><para>
+Improved hostprogs compatibility for cross-compiling the Linux kernel.
+New headers: &lt;asm/bitsperlong.h&gt;, &lt;asm/posix_types.h&gt;.
+</para></listitem>
+
+<listitem><para>
+Built-in implementation of Stack Smashing Protection compiler feature.
+New APIs: __stack_chk_fail, __stack_chk_guard.
+</para></listitem>
+
+<listitem><para>
+Built-in implementation of _FORTIFY_SOURCE guards for functions in
+&lt;stdio.h&gt;, &lt;stdlib.h&gt;, &lt;string.h&gt;, &lt;strings.h&gt;,
+&lt;unistd.h&gt;, &lt;wchar.h&gt;, &lt;sys/poll.h&gt;, and &lt;sys/socket.h&gt;.
+New APIs:  __chk_fail, __gets_chk, __memcpy_chk, __memmove_chk, __mempcpy_chk,
+__memset_chk, __snprintf_chk, __sprintf_chk, __stpcpy_chk, __stpncpy_chk,
+__strcat_chk, __strcpy_chk, __strncat_chk, __strncpy_chk, __vsnprintf_chk,
+__vsprintf_chk.
+</para></listitem>
+
+<listitem><para>
+Built-in implementation of POSIX.1-2001 message catalog support.
+New APIs: catclose, catgets, catopen.  New tool: gencat.
 </para></listitem>
 
 <listitem><para>

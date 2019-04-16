@@ -82,8 +82,12 @@ strace::dll_info ()
 int
 strace::microseconds ()
 {
-  static hires_ns now NO_COPY;
-  return (int) now.usecs ();
+  static LONGLONG process_start NO_COPY;
+  clk_monotonic_t *clk = (clk_monotonic_t *) get_clock (CLOCK_MONOTONIC);
+
+  if (!process_start)
+    process_start = clk->strace_usecs ();
+  return (int) (clk->strace_usecs () - process_start);
 }
 
 static int __stdcall
@@ -138,7 +142,7 @@ strace::vsprntf (char *buf, const char *func, const char *infmt, va_list ap)
   char fmt[80];
   static NO_COPY bool nonewline = false;
   DWORD err = GetLastError ();
-  const char *tn = cygthread::name ();
+  const char *tn = mythreadname ();
 
   int microsec = microseconds ();
   lmicrosec = microsec;

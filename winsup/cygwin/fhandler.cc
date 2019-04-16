@@ -137,11 +137,23 @@ fhandler_base::set_name (path_conv &in_pc)
 
 char *fhandler_base::get_proc_fd_name (char *buf)
 {
+  IO_STATUS_BLOCK io;
+  FILE_STANDARD_INFORMATION fsi;
+
   /* If the file had been opened with O_TMPFILE | O_EXCL, don't
      expose the filename.  linkat is supposed to return ENOENT in this
-     case.  See man 2 open on Linux. */
-  if ((get_flags () & (O_TMPFILE | O_EXCL)) == (O_TMPFILE | O_EXCL))
-    return strcpy (buf, "");
+     case.  FIXME: As soon as we open by handle from /proc/<PID>/fd,
+     the O_EXCL test has to be moved to open. */
+  if ((get_flags () & (O_TMPFILE | O_EXCL)) == (O_TMPFILE | O_EXCL)
+      || (get_device () == FH_FS
+	  && NT_SUCCESS (NtQueryInformationFile (get_handle (), &io,
+						 &fsi, sizeof fsi,
+						 FileStandardInformation))
+	  && fsi.DeletePending))
+    {
+      stpcpy (stpcpy (buf, get_name ()), " (deleted)");
+      return buf;
+    }
   if (get_name ())
     return strcpy (buf, get_name ());
   if (dev ().name ())
@@ -594,20 +606,23 @@ fhandler_base::open (int flags, mode_t mode)
 
   if (get_device () == FH_FS)
     {
-      /* Add the reparse point flag to native symlinks, otherwise we open the
-	 target, not the symlink.  This would break lstat. */
-      if (pc.is_rep_symlink ())
+      /* Add the reparse point flag to known repares points, otherwise we
+	 open the target, not the reparse point.  This would break lstat. */
+      if (pc.is_known_reparse_point ())
 	options |= FILE_OPEN_REPARSE_POINT;
 
       /* O_TMPFILE files are created with delete-on-close semantics, as well
 	 as with FILE_ATTRIBUTE_TEMPORARY.  The latter speeds up file access,
 	 because the OS tries to keep the file in memory as much as possible.
 	 In conjunction with FILE_DELETE_ON_CLOSE, ideally the OS never has
-	 to write to the disk at all. */
+	 to write to the disk at all.
+	 Note that O_TMPFILE_FILE_ATTRS also sets the DOS HIDDEN attribute
+	 to help telling Cygwin O_TMPFILE files apart from other files
+	 accidentally setting FILE_ATTRIBUTE_TEMPORARY. */
       if (flags & O_TMPFILE)
 	{
 	  access |= DELETE;
-	  file_attributes |= FILE_ATTRIBUTE_TEMPORARY;
+	  file_attributes |= O_TMPFILE_FILE_ATTRS;
 	  options |= FILE_DELETE_ON_CLOSE;
 	}
 
@@ -1094,14 +1109,14 @@ fhandler_base::lseek (off_t offset, int whence)
 }
 
 ssize_t __reg3
-fhandler_base::pread (void *, size_t, off_t)
+fhandler_base::pread (void *, size_t, off_t, void *)
 {
   set_errno (ESPIPE);
   return -1;
 }
 
 ssize_t __reg3
-fhandler_base::pwrite (void *, size_t, off_t)
+fhandler_base::pwrite (void *, size_t, off_t, void *)
 {
   set_errno (ESPIPE);
   return -1;
@@ -1564,7 +1579,7 @@ fhandler_base::fork_fixup (HANDLE parent, HANDLE &h, const char *name)
 {
   HANDLE oh = h;
   bool res = false;
-  if (/* !is_socket () && */ !close_on_exec ())
+  if (!close_on_exec ())
     debug_printf ("handle %p already opened", h);
   else if (!DuplicateHandle (parent, h, GetCurrentProcess (), &h,
 			     0, !close_on_exec (), DUPLICATE_SAME_ACCESS))
@@ -1872,6 +1887,7 @@ fhandler_base::fpathconf (int v)
       set_errno (EINVAL);
       break;
     case _PC_ASYNC_IO:
+      return 1;
     case _PC_PRIO_IO:
       break;
     case _PC_SYNC_IO:
