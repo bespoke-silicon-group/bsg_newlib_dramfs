@@ -29,22 +29,26 @@ struct lfs_config bsg_newlib_fs_cfg = {
 
 // Init routine for BSG Newlib FS
 int bsg_newlib_fs_init() {
-  // initite fdtable
-  for(int i=0; i<BSG_NEWLIB_MAX_FDS; i++) {
-    if(bsg_newlib_free_fd(i) < 0){
-      return -1;
+  bsg_set_tile_x_y();
+
+  if(__bsg_x == 0 && __bsg_y == __bsg_tiles_Y-1) {
+    // initite fdtable
+    for(int i=0; i<BSG_NEWLIB_MAX_FDS; i++) {
+      if(bsg_newlib_free_fd(i) < 0){
+        return -1;
+      }
     }
+
+	  // format the file system
+	  if(lfs_format(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
+	  	return -1;
+	  }
+
+	  // mount the file system
+	  if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
+	  	return -1;
+	  }
   }
-
-	// format the file system
-	if(lfs_format(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
-		return -1;
-	}
-
-	// mount the file system
-	if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
-		return -1;
-	}
 
 	return 0;
 }
