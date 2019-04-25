@@ -38,12 +38,17 @@ int main(int argc, char *argv[]) {
 	FILE *img; // output fs image file handler
 
 	if(argc < 3) {
-		printf("Usage: bsg_newlib_mkfs <block_size> <block_count> [stdin.txt input file(s)]\n");
+		printf("Usage: bsg_newlib_mkfs <block_size> <block_count> [input file(s)]\n");
 		return -1;
 	}
 
 	block_size = atoi(argv[1]);
 	block_count = atoi(argv[2]);
+
+
+  //+------------------------------------------------------
+  //| Allocate memory for building Little FS image
+  //+------------------------------------------------------
 
 	// memory allocation for lfs
 	lfs_ptr = (char *) malloc(block_size*block_count);
@@ -63,8 +68,29 @@ int main(int argc, char *argv[]) {
 		printf("LFS mount error\n");
 		return -1;
 	}
+  
 
-	// copy files from host fs to lfs image
+  //+-------------------------------------------------------
+  //| Create stdin, stdout and stderr files in the littlefs
+  //+-------------------------------------------------------
+    
+  lfs_file_t lfs_stdin, lfs_stdout, lfs_stderr;
+
+  // Create stdio files
+  lfs_file_open(&lfs, &lfs_stdin, "stdin", LFS_O_WRONLY | LFS_O_CREAT);
+  lfs_file_open(&lfs, &lfs_stdout, "stdout", LFS_O_WRONLY | LFS_O_CREAT);
+  lfs_file_open(&lfs, &lfs_stderr, "stderr", LFS_O_WRONLY | LFS_O_CREAT);
+
+  // Close stdio files
+  lfs_file_close(&lfs, &lfs_stdin);
+  lfs_file_close(&lfs, &lfs_stdout);
+  lfs_file_close(&lfs, &lfs_stderr);
+
+
+  //+-------------------------------------------------------
+  //| Copy input file to LFS image
+  //+-------------------------------------------------------
+
 	for(int i = 3; i < argc; i++) {
 		// open input file for reading
 		FILE *infile = fopen(argv[i], "r");
@@ -95,6 +121,11 @@ int main(int argc, char *argv[]) {
 		printf("LFS unmounting error\n");
 		return -1;
 	}
+
+
+  //+------------------------------------------------------
+  //| Print the LFS image as a C array
+  //+------------------------------------------------------
 
 	printf("// BSG Newlib File System Initialization\n");
 	printf("//\n");
