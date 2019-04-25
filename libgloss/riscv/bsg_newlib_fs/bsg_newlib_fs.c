@@ -4,9 +4,11 @@
 #include "bsg_newlib_fdtable.h"
 
 // Data mem allocation for FS
-uint8_t lfs_mem[BSG_NEWLIB_FS_BLOCK_SIZE*BSG_NEWLIB_FS_BLOCK_COUNT] __attribute__ ((section (".dram")));
+uint8_t lfs_mem[BSG_NEWLIB_FS_BLOCK_SIZE*BSG_NEWLIB_FS_BLOCK_COUNT] 
+  __attribute__ ((section (".bss")))
+  __attribute__ ((weak));
 
-lfs_t bsg_newlib_fs __attribute__ ((section (".dram")));
+lfs_t bsg_newlib_fs;
 
 // File system memory pointer
 uint8_t *lfs_ptr = lfs_mem;
@@ -29,26 +31,22 @@ struct lfs_config bsg_newlib_fs_cfg = {
 
 // Init routine for BSG Newlib FS
 int bsg_newlib_fs_init() {
-  bsg_set_tile_x_y();
-
-  if(__bsg_x == 0 && __bsg_y == __bsg_tiles_Y-1) {
-    // initite fdtable
-    for(int i=0; i<BSG_NEWLIB_MAX_FDS; i++) {
-      if(bsg_newlib_free_fd(i) < 0){
-        return -1;
-      }
+  // initiate fdtable
+  for(int i=0; i<BSG_NEWLIB_MAX_FDS; i++) {
+    if(bsg_newlib_free_fd(i) < 0){
+      return -1;
     }
-
-	  // format the file system
-	  if(lfs_format(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
-	  	return -1;
-	  }
-
-	  // mount the file system
-	  if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
-	  	return -1;
-	  }
   }
+
+	//// format the file system
+	//if(lfs_format(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
+	//	return -1;
+	//}
+
+	// mount the file system
+	if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
+		return -1;
+	}
 
 	return 0;
 }

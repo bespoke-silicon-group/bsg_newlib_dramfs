@@ -31,13 +31,7 @@ extern lfs_t bsg_newlib_fs;
 // Defined by the library based on above macros
 extern struct lfs_config bsg_newlib_fs_cfg;
 
-extern void bsg_set_tile_x_y(void);
-
-extern int __bsg_x;
-extern int __bsg_y;
-extern int __bsg_tiles_Y;
-
 // File system init routine
-int bsg_newlib_fs_init(void) __attribute__ ((section (".init_array")));
+int bsg_newlib_fs_init(void);
 
 #endif // BSG_NEWLIB_FS_H

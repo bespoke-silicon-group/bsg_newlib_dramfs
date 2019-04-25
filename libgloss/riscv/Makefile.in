@@ -21,13 +21,16 @@ bsg_newlib_fs_hdrs = \
 	bsg_newlib_fs/littlefs/bd/lfs_bd.h
 
 bsg_newlib_mkfs_srcs = \
-	bsg_newlib_mkfs.c \
+	bsg_newlib_mklfs.c \
 	lfs.c \
 	lfs_util.c \
 	lfs_bd.c
 
 bsg_newlib_mkfs_bin = \
-	bsg_newlib_mkfs
+	bsg_newlib_mklfs
+
+bsg_newlib_init = \
+	bsg_newlib_init.c
 
 #-------------------------------------------------------------------------
 # Source files
@@ -132,7 +135,7 @@ BSG_NEWLIB_FS_CFLAGS = -O1
 BSG_NEWLIB_FS_CFLAGS += $(bsg_newlib_fs_incs)
 BSG_NEWLIB_FS_CFLAGS += -std=c99
 BSG_NEWLIB_FS_CFLAGS += -DLFS_NO_ASSERT -DLFS_NO_DEBUG \
-                        -DLFS_NO_WARN -DLFS_NO_ERROR -DLFS_NO_INTRINSICS #\
+                        -DLFS_NO_WARN -DLFS_NO_ERROR -DLFS_NO_INTRINSICS \
 												-Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
 
 $(bsg_newlib_fs_objs): %.o : %.c
@@ -162,6 +165,17 @@ $(bsg_newlib_mkfs_bin): $(bsg_newlib_mkfs_objs)
 gloss_bins += $(bsg_newlib_mkfs_bin)
 
 #-------------------------------------------------------------------------
+# BSG NEWLIB init
+#-------------------------------------------------------------------------
+
+bsg_newlib_init_objs = $(patsubst %.c, %.o, $(bsg_newlib_fs_init))
+
+$(bsg_newlib_init_objs): %.o : %.c
+	$(BSG_NEWLIB_FS_CC) $(BSG_NEWLIB_FS_CFLAGS) -c $< -o $@
+
+install_libs += $(bsg_newlib_init_objs)
+
+#-------------------------------------------------------------------------
 # Programs and flags 
 #-------------------------------------------------------------------------
 
@@ -169,7 +183,7 @@ gloss_bins += $(bsg_newlib_mkfs_bin)
 
 CC            := @CC@
 CFLAGS        := @CFLAGS@
-CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs)
+CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs) -Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
 COMPILE       := $(CC) -MMD -MP $(CPPFLAGS) $(CFLAGS)
 
 # Library creation
@@ -191,7 +205,7 @@ gloss_c_objs = $(patsubst %.c, %.o, $(notdir $(gloss_c_srcs)))
 gloss_c_deps = $(patsubst %.c, %.d, $(notdir $(gloss_c_srcs)))
 
 $(gloss_c_objs) : %.o : %.c
-	$(COMPILE) -c $<
+	$(COMPILE) -c $< -Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
 
 gloss_objs += $(gloss_c_objs)
 deps += $(gloss_c_deps)
