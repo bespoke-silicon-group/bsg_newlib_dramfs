@@ -3,31 +3,11 @@
 #include "bsg_newlib_fs.h"
 #include "bsg_newlib_fdtable.h"
 
-// Data mem allocation for FS
-uint8_t lfs_mem[BSG_NEWLIB_FS_BLOCK_SIZE*BSG_NEWLIB_FS_BLOCK_COUNT] 
-  __attribute__ ((section (".bss")))
-  __attribute__ ((weak));
-
 lfs_t bsg_newlib_fs;
+extern uint8_t lfs_mem[];
 
 // File system memory pointer
-uint8_t *lfs_ptr = lfs_mem;
-
-// LFS configuration
-struct lfs_config bsg_newlib_fs_cfg = {
-    // block device operations
-    .read  = lfs_read,
-    .prog  = lfs_prog,
-    .erase = lfs_erase,
-    .sync  = lfs_sync,
-
-    // block device configuration
-    .read_size   = BSG_NEWLIB_FS_READ_SIZE,
-    .prog_size   = BSG_NEWLIB_FS_PROG_SIZE,
-    .block_size  = BSG_NEWLIB_FS_BLOCK_SIZE,
-    .block_count = BSG_NEWLIB_FS_BLOCK_COUNT,
-    .lookahead   = BSG_NEWLIB_FS_LOOKAHEAD
-};
+uint8_t* lfs_ptr = lfs_mem;
 
 // Init routine for BSG Newlib FS
 int bsg_newlib_fs_init() {
@@ -37,11 +17,6 @@ int bsg_newlib_fs_init() {
       return -1;
     }
   }
-
-	//// format the file system
-	//if(lfs_format(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
-	//	return -1;
-	//}
 
 	// mount the file system
 	if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
