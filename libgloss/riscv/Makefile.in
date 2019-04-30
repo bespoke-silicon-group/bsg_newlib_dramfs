@@ -168,7 +168,7 @@ gloss_bins += $(bsg_newlib_mkfs_bin)
 # BSG NEWLIB init
 #-------------------------------------------------------------------------
 
-bsg_newlib_init_objs = $(patsubst %.c, %.o, $(bsg_newlib_fs_init))
+bsg_newlib_init_objs = $(patsubst %.c, %.o, $(bsg_newlib_init))
 
 $(bsg_newlib_init_objs): %.o : %.c
 	$(BSG_NEWLIB_FS_CC) $(BSG_NEWLIB_FS_CFLAGS) -c $< -o $@
