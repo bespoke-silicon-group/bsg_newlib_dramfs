@@ -8,6 +8,8 @@
 #define BSG_NEWLIB_MAX_FDS 20
 #endif
 
+void bsg_newlib_init_fdtable(void);
+
 int bsg_newlib_check_fd(int fd);
 
 int bsg_newlib_reserve_fd(void);

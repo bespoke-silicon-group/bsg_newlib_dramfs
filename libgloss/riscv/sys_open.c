@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
+#include "../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 /* Open a file.  */
 int
@@ -9,6 +10,8 @@ _open(const char *name, int flags, int mode)
 {
   int fd = bsg_newlib_reserve_fd();
   int lfs_flags = 0;
+
+  //bsg_printf("opening %s fd = %d\n", name, fd);
 
   // File open flags mapping
   lfs_flags |= (flags & O_RDONLY) ? LFS_O_RDONLY : 0;

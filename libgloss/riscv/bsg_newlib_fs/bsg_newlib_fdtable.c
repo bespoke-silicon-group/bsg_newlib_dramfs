@@ -1,5 +1,6 @@
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
+#include "../../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 typedef struct bsg_newlib_fd_entry {
   int used;
@@ -7,6 +8,12 @@ typedef struct bsg_newlib_fd_entry {
 } bsg_newlib_fd_entry_t;
 
 static bsg_newlib_fd_entry_t bsg_newlib_fdtable[BSG_NEWLIB_MAX_FDS];
+
+void bsg_newlib_init_fdtable(void) {
+  for(int i=0; i<BSG_NEWLIB_MAX_FDS; i++) {
+    bsg_newlib_fdtable[i].used = 0;
+  }
+}
 
 int bsg_newlib_check_fd(int fd) {
   if(fd < 0 || fd >= BSG_NEWLIB_MAX_FDS || bsg_newlib_fdtable[fd].used == 0) {

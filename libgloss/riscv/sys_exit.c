@@ -1,10 +1,18 @@
-#include <machine/syscall.h>
-#include "internal_syscall.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "bsg_newlib_fs.h"
+#include "../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 /* Exit a program without cleaning up files.  */
 void
 _exit(int exit_status)
 {
-  syscall_errno (SYS_exit, exit_status, 0, 0, 0, 0, 0);
-  while (1);
+  //bsg_printf("Exiting\n");
+  if(exit_status == EXIT_SUCCESS) {
+    bsg_finish();
+  } else {
+    bsg_fail();
+  }
+
+  bsg_wait_while(1);
 }
