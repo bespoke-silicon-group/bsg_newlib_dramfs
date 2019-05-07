@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
+#include "../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 /* Read from a file.  */
 ssize_t _read(int fd, void *ptr, size_t len)

@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
           "    .lookahead   = 32\n"
           "};\n\n", block_size, block_count);
 
-	printf("uint8_t lfs_mem[] __attribute__ ((section (\".dram\"))) = {\n");
+	printf("uint8_t lfs_mem[] = {\n");
 	
 	// dump fs memory to stdout in C array format
 	for(int i=0; i < block_size*block_count; i++) {

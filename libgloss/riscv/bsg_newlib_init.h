@@ -7,6 +7,6 @@ extern int __bsg_x;
 extern int __bsg_y;
 extern int __bsg_tiles_Y;
 
-int bsg_newlib_init();
+void bsg_newlib_init(void);
 
 #endif // BSG_NEWLIB_INIT
