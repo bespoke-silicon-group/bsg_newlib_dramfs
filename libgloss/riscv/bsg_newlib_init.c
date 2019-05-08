@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "bsg_newlib_init.h"
 #include "bsg_newlib_fs.h"
 #include "../../../../../bsg_manycore_lib/bsg_manycore.h"
