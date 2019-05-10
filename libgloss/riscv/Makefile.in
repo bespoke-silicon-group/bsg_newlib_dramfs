@@ -29,9 +29,6 @@ bsg_newlib_mkfs_srcs = \
 bsg_newlib_mkfs_bin = \
 	bsg_newlib_mklfs
 
-bsg_newlib_init = \
-	bsg_newlib_init.c
-
 #-------------------------------------------------------------------------
 # Source files
 #-------------------------------------------------------------------------
@@ -163,17 +160,6 @@ $(bsg_newlib_mkfs_bin): $(bsg_newlib_mkfs_objs)
 	$(BSG_NEWLIB_MKFS_CC) $(bsg_newlib_mkfs_objs) -o $@
 
 gloss_bins += $(bsg_newlib_mkfs_bin)
-
-#-------------------------------------------------------------------------
-# BSG NEWLIB init
-#-------------------------------------------------------------------------
-
-bsg_newlib_init_objs = $(patsubst %.c, %.o, $(bsg_newlib_init))
-
-$(bsg_newlib_init_objs): %.o : %.c
-	$(BSG_NEWLIB_FS_CC) $(BSG_NEWLIB_FS_CFLAGS) -c $< -o $@
-
-install_libs += $(bsg_newlib_init_objs)
 
 #-------------------------------------------------------------------------
 # Programs and flags 
