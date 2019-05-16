@@ -2,7 +2,6 @@
 #include <sys/types.h>
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
-#include "../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 /* Write to a file.  */
 ssize_t
@@ -13,10 +12,10 @@ _write(int fd, const void *ptr, size_t len)
   }
 
   // write to console if it's stdout
-  if(fd == 1) {
+  if(fd == 1 || fd==2) {
     for(int i=0; i<len; i++){
       char* cp = (char*) ptr;
-      bsg_putchar(cp[i]);
+      bsg_newlib_sendchar(cp[i]);
     }
   }
 

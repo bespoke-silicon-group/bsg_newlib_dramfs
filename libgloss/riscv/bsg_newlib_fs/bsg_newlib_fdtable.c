@@ -1,6 +1,5 @@
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
-#include "../../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 typedef struct bsg_newlib_fd_entry {
   int used;

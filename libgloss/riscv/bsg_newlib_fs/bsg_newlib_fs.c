@@ -4,7 +4,6 @@
 #include "lfs_bd.h"
 #include "bsg_newlib_fs.h"
 #include "bsg_newlib_fdtable.h"
-#include "../../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 lfs_t bsg_newlib_fs;
 extern uint8_t lfs_mem[];
