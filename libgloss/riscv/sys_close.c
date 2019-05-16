@@ -1,7 +1,6 @@
 #include <errno.h>
 #include "bsg_newlib_fdtable.h"
 #include "bsg_newlib_fs.h"
-#include "../../../../../bsg_manycore_lib/bsg_manycore.h"
 
 /* Close a file.  */
 int
