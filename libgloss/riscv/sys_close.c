@@ -6,7 +6,6 @@
 int
 _close(int fd)
 {
-  //bsg_printf("closing fd = %d\n", fd);
   if(bsg_newlib_check_fd(fd) < 0) {
     return -1;
   }
