@@ -6,7 +6,6 @@
 #include "bsg_newlib_fdtable.h"
 
 lfs_t bsg_newlib_fs;
-extern uint8_t lfs_mem[];
 
 // File system memory pointer
 uint8_t* lfs_ptr = lfs_mem;
