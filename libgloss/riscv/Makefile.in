@@ -132,8 +132,7 @@ BSG_NEWLIB_FS_CFLAGS = -O1
 BSG_NEWLIB_FS_CFLAGS += $(bsg_newlib_fs_incs)
 BSG_NEWLIB_FS_CFLAGS += -std=c99 -mcmodel=medany
 BSG_NEWLIB_FS_CFLAGS += -DLFS_NO_ASSERT -DLFS_NO_DEBUG \
-                        -DLFS_NO_WARN -DLFS_NO_ERROR -DLFS_NO_INTRINSICS \
-												-Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
+                        -DLFS_NO_WARN -DLFS_NO_ERROR -DLFS_NO_INTRINSICS
 
 $(bsg_newlib_fs_objs): %.o : %.c
 	$(BSG_NEWLIB_FS_CC) $(BSG_NEWLIB_FS_CFLAGS) -c $< -o $@
@@ -170,7 +169,7 @@ gloss_bins += $(bsg_newlib_mkfs_bin)
 CC            := @CC@
 CFLAGS        := @CFLAGS@
 CFLAGS        += -mcmodel=medany
-CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs) -Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
+CPPFLAGS      := -I$(obj_dir) -I$(src_dir) $(bsg_newlib_fs_incs) -mcmodel=medany
 COMPILE       := $(CC) -MMD -MP $(CPPFLAGS) $(CFLAGS)
 
 # Library creation
@@ -192,7 +191,7 @@ gloss_c_objs = $(patsubst %.c, %.o, $(notdir $(gloss_c_srcs)))
 gloss_c_deps = $(patsubst %.c, %.d, $(notdir $(gloss_c_srcs)))
 
 $(gloss_c_objs) : %.o : %.c
-	$(COMPILE) -c $< -Dbsg_tiles_X=2 -Dbsg_tiles_Y=2 -Dbsg_global_X=2 -Dbsg_global_Y=3
+	$(COMPILE) -c $<
 
 gloss_objs += $(gloss_c_objs)
 deps += $(gloss_c_deps)
