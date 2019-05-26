@@ -148,7 +148,7 @@ junk += $(bsg_newlib_fs_objs)
 bsg_newlib_mkfs_objs = $(patsubst %.c, %_host.o, $(bsg_newlib_mkfs_srcs))
 
 BSG_NEWLIB_MKFS_CC     = gcc
-BSG_NEWLIB_MKFS_CFLAGS = -O1 -mcmodel=medany
+BSG_NEWLIB_MKFS_CFLAGS = -O1
 BSG_NEWLIB_MKFS_CFLAGS += $(bsg_newlib_fs_incs)
 BSG_NEWLIB_MKFS_CFLAGS += -std=c99
 
