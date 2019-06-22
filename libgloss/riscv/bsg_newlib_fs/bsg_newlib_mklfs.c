@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		char c = fgetc(infile);
+		int c = fgetc(infile);
 		while (c != EOF) {
 			lfs_file_write(&lfs, &lfs_file, &c, 1);
 			c = fgetc(infile);
