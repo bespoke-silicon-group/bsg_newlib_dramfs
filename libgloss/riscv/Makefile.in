@@ -22,6 +22,7 @@ bsg_newlib_fs_hdrs = \
 
 bsg_newlib_mkfs_srcs = \
 	bsg_newlib_mklfs.c \
+	bsg_newlib_util.c \
 	lfs.c \
 	lfs_util.c \
 	lfs_bd.c
@@ -150,7 +151,7 @@ bsg_newlib_mkfs_objs = $(patsubst %.c, %_host.o, $(bsg_newlib_mkfs_srcs))
 BSG_NEWLIB_MKFS_CC     = gcc
 BSG_NEWLIB_MKFS_CFLAGS = -O1
 BSG_NEWLIB_MKFS_CFLAGS += $(bsg_newlib_fs_incs)
-BSG_NEWLIB_MKFS_CFLAGS += -std=c99
+BSG_NEWLIB_MKFS_CFLAGS += -std=gnu99
 
 $(bsg_newlib_mkfs_objs): %_host.o : %.c
 	$(BSG_NEWLIB_MKFS_CC) $(BSG_NEWLIB_MKFS_CFLAGS) -c $< -o $@

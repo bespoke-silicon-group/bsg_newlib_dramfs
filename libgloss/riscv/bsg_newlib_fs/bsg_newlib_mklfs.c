@@ -1,13 +1,15 @@
-// Program to initiate littlefs image of given set of files
+// Program to create littlefs image comprising of input files/dirs
 //
 // Bandhav Veluri
 // 03-07-2019
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lfs.h"
 #include "lfs_bd.h"
+#include "bsg_newlib_util.h"
 
 // Main file system struct
 lfs_t lfs;
@@ -38,7 +40,7 @@ int main(int argc, char *argv[]) {
 	FILE *img; // output fs image file handler
 
 	if(argc < 3) {
-		printf("Usage: bsg_newlib_mkfs <block_size> <block_count> [input file(s)]\n");
+		printf("Usage: bsg_newlib_mklfs <block_size> <block_count> [input file(s)/dir(s)]\n");
 		return -1;
 	}
 
@@ -88,32 +90,12 @@ int main(int argc, char *argv[]) {
 
 
   //+-------------------------------------------------------
-  //| Copy input file to LFS image
+  //| Copy input files/dirs to LFS image
   //+-------------------------------------------------------
 
 	for(int i = 3; i < argc; i++) {
-		// open input file for reading
-		FILE *infile = fopen(argv[i], "r");
-		if(infile == NULL) {
-			printf("Error opening input file %s\n", argv[i]);
+		if(lfs_cp(argv[i], &lfs) < 0)
 			return -1;
-		}
-
-		// create a lfs file for writing
-		lfs_file_t lfs_file;
-		if(lfs_file_open(&lfs, &lfs_file, argv[i], LFS_O_WRONLY | LFS_O_CREAT) < 0) {
-			printf("LFS file open error\n");
-			return -1;
-		}
-
-		int c = fgetc(infile);
-		while (c != EOF) {
-			lfs_file_write(&lfs, &lfs_file, &c, 1);
-			c = fgetc(infile);
-		}
-
-		fclose(infile);
-		lfs_file_close(&lfs, &lfs_file);
 	}
 
 	// Unmount lfs
