@@ -1,23 +1,14 @@
-#include <errno.h>
-#include <sys/stat.h>
-#include <bsg_newlib_fs.h>
+#include <machine/syscall.h>
+#include "kernel_stat.h"
+#include "internal_syscall.h"
 
 /* Status of a file (by name).  */
 
 int
 _stat(const char *file, struct stat *st)
 {
-  struct lfs_info finfo;
-
-  int res = lfs_stat(&bsg_newlib_fs, file, &finfo);
-  if(res < 0) {
-    errno = res;
-    return -1;
-  } else {
-    st->st_mode = S_IFREG;
-    st->st_size = (off_t) finfo.size;
-    st->st_blksize = (blksize_t) bsg_newlib_fs_cfg.block_size;
-    st->st_blocks  = (blkcnt_t) bsg_newlib_fs_cfg.block_count;
-    return 0;
-  }
+  struct kernel_stat kst;
+  int rv = syscall_errno (SYS_stat, file, &kst, 0, 0, 0, 0);
+  _conv_stat (st, &kst);
+  return rv;
 }

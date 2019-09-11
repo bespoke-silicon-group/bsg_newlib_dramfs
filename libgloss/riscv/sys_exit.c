@@ -1,14 +1,10 @@
-#include <unistd.h>
-#include "bsg_newlib_fs.h"
+#include <machine/syscall.h>
+#include "internal_syscall.h"
 
 /* Exit a program without cleaning up files.  */
 void
-_exit(int exit_status) {
-  // close stdio
-  close(0);
-  close(1);
-  close(2);
-
-  bsg_newlib_exit(exit_status);
-  while(1);
+_exit(int exit_status)
+{
+  syscall_errno (SYS_exit, exit_status, 0, 0, 0, 0, 0);
+  while (1);
 }

@@ -79,7 +79,7 @@ case "${target}" in
 	AC_CONFIG_SUBDIRS([mips])
 	;;
   riscv*-*-*)
-	AC_CONFIG_SUBDIRS([riscv])
+	AC_CONFIG_SUBDIRS([dramfs])
 	;;
   powerpc-*-*|powerpcle-*-*)
 	AC_CONFIG_SUBDIRS([rs6000])
