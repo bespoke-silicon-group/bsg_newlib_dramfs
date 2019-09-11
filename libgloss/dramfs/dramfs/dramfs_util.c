@@ -1,4 +1,4 @@
-// BSG Newlib utility functions
+// Newlib utility functions
 //
 // Bandhav Veluri
 // 08/15/2019
@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <string.h>
-#include "bsg_newlib_util.h"
+#include "dramfs_util.h"
 
 int is_file(const char* path) {
 	struct stat s;

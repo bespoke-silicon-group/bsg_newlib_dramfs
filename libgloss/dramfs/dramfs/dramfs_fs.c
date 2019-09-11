@@ -2,21 +2,21 @@
 #include <fcntl.h>
 #include "lfs.h"
 #include "lfs_bd.h"
-#include "bsg_newlib_fs.h"
-#include "bsg_newlib_fdtable.h"
+#include "dramfs_fs.h"
+#include "dramfs_fdtable.h"
 
-lfs_t bsg_newlib_fs;
+lfs_t dramfs_fs;
 
 // File system memory pointer
 uint8_t* lfs_ptr = lfs_mem;
 
-// Init routine for BSG Newlib FS
-int bsg_newlib_fs_init() {
+// Init routine for Newlib FS
+int dramfs_fs_init() {
   // initiate fdtable
-  bsg_newlib_init_fdtable();
+  dramfs_init_fdtable();
 
 	// mount the file system
-	if(lfs_mount(&bsg_newlib_fs, &bsg_newlib_fs_cfg) < 0) {
+	if(lfs_mount(&dramfs_fs, &dramfs_fs_cfg) < 0) {
 		return -1;
 	}
 
