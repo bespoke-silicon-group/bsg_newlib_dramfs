@@ -1,14 +1,14 @@
 #include <errno.h>
-#include "bsg_newlib_fdtable.h"
-#include "bsg_newlib_fs.h"
+#include "dramfs_fdtable.h"
+#include "dramfs_fs.h"
 
 /* Close a file.  */
 int
 _close(int fd)
 {
-  if(bsg_newlib_check_fd(fd) < 0) {
+  if(dramfs_check_fd(fd) < 0) {
     return -1;
   }
 
-  return bsg_newlib_free_fd(fd);
+  return dramfs_free_fd(fd);
 }

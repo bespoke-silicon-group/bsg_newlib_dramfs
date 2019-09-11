@@ -1,8 +1,8 @@
 // Dynamic allocation in the dram
 // TODO: add mutex
-extern char _bsg_dram_end_addr[]; /* _bsg_data_end_addr is set in the linker command file */
+extern char _end[]; /* _end is set in the linker command file */
 
-char *heap_ptr = _bsg_dram_end_addr;
+char *heap_ptr = _end;
 
 /*
  * sbrk -- changes heap size size. Get nbytes more
