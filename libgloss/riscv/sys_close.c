@@ -1,14 +1,9 @@
-#include <errno.h>
-#include "bsg_newlib_fdtable.h"
-#include "bsg_newlib_fs.h"
+#include <machine/syscall.h>
+#include "internal_syscall.h"
 
 /* Close a file.  */
 int
-_close(int fd)
+_close(int file)
 {
-  if(bsg_newlib_check_fd(fd) < 0) {
-    return -1;
-  }
-
-  return bsg_newlib_free_fd(fd);
+  return syscall_errno (SYS_close, file, 0, 0, 0, 0, 0);
 }
