@@ -143,6 +143,7 @@ Contents of `hello.txt`:
 Hello! This is Little FS!
 ```
 
+Above program with file I/O can be run on bare metal RISC-V system as shown below:
 ```
 <toolchain_installtion_dir>/riscv32-unknown-elf/bin/dramfs_mklfs 64 128 hello.txt > lfs_mem.c
 <toolchain_installtion_dir>/bin/riscv32-unknown-elf-gcc -c fhello.c -o fhello.o
@@ -155,6 +156,7 @@ Hello! This is Little FS!
 
 - Of the syscalls listed in [4], Newlib/Dramfs currently supports `sbrk`, `open`, `close`, `read`, `write`, `exit`, `lseek`. Others are not supported yet, and they return setting appropriate error number.
 - Block size and count can be tweaked to imporve performance depending on your system. More on this can be understood from [2].
+- Current implementations of syscalls are *not* thread-safe. So, this can only be used for single threaded programs as of now.
 
 ## References
 
