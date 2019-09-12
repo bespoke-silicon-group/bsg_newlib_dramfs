@@ -1,5 +1,7 @@
-#include <machine/syscall.h>
-#include "internal_syscall.h"
+#include <errno.h>
+
+#undef errno
+extern int errno;
 
 /* Send a signal. Minimal implementation for a system without processes
    just causes an error.  */

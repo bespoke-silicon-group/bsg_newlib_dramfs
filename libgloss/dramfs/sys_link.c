@@ -1,8 +1,11 @@
-#include <machine/syscall.h>
-#include "internal_syscall.h"
+#include <errno.h>
 
-/* Establish a new name for an existing file.  */
+#undef errno
+extern int errno;
+
+/* Establish a new name for an existing file. Minimal implementation */
 int _link(const char *old_name, const char *new_name)
 {
-  return syscall_errno (SYS_link, old_name, new_name, 0, 0, 0, 0);
+  errno = EMLINK;
+  return -1;
 }

@@ -581,8 +581,8 @@ PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 PACKAGE_URL=
 
-ac_unique_file="crt0.S"
-ac_unique_file="crt0.S"
+ac_unique_file="sys_open.c"
+ac_unique_file="sys_open.c"
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 INSTALL_DATA
