@@ -1,9 +1,12 @@
-#include <machine/syscall.h>
-#include "internal_syscall.h"
+#include <errno.h>
+
+#undef errno
+extern int errno;
 
 /* Remove a file's directory entry.  */
 int
 _unlink(const char *name)
 {
-  return syscall_errno (SYS_unlink, name, 0, 0, 0, 0, 0);
+  errno = ENOENT;
+  return -1;
 }
