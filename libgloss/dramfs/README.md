@@ -145,10 +145,10 @@ Hello! This is Little FS!
 
 Above program with file I/O can be run on bare metal RISC-V system as shown below:
 ```
-<toolchain_installtion_dir>/riscv32-unknown-elf/bin/dramfs_mklfs 64 128 hello.txt > lfs_mem.c
-<toolchain_installtion_dir>/bin/riscv32-unknown-elf-gcc -c fhello.c -o fhello.o
-<toolchain_installtion_dir>/bin/riscv32-unknown-elf-gcc -c lfs_mem.c -o lfs_mem.o
-<toolchain_installtion_dir>/bin/riscv32-unknown-elf-gcc -t link.ld fhello.o crt.o lfs_mem.o -o fhello
+<toolchain_installation_dir>/riscv32-unknown-elf/bin/dramfs_mklfs 64 128 hello.txt > lfs_mem.c
+<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -c fhello.c -o fhello.o
+<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -c lfs_mem.c -o lfs_mem.o
+<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -t link.ld fhello.o crt.o lfs_mem.o -o fhello
 ./fhello
 ```
 
