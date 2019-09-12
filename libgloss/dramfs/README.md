@@ -3,7 +3,7 @@
 
 ## Introduction
 
-Newlib is a light-weight C standard library implementation for embedded systems. It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found here.
+Newlib is a light-weight C standard library implementation for embedded systems. It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
 
 Running POSIX programs on bare metal systems require some sort of implementation for file i/o and malloc. Malloc depends on just one system-call called sbrk, which essentially increments or decrements heap pointer as and when requested. Whereas, file i/o requires an actual file system, or an interface that can mimic a file system. This Newlib port uses an open-source lightweight file-system designed for embedded flash file systems by ARM called LittleFS (LFS). LittleFS also supports a DRAM-based file system, which is the one we use. 
 
@@ -11,17 +11,48 @@ The idea is to implement file i/o syscalls by simply translating them to LFS fun
 
 ## Installation
 
-Newlib/Dramfs is intended to be a separate Board Support Package (BSP) in Newlib and we plan to upstream it to Newlib. But currently, this project can be used with RISC-V GCC toolcahin by replacing the newlib submodule with this repository. RISC-V toolchain with Newlib/Dramfs can be installed as below:
+Newlib/Dramfs is intended to be a separate Board Support Package (BSP) in Newlib and we plan to upstream it to Newlib. But currently, this project can be used with RISC-V GCC toolcahin by replacing the newlib submodule with this repository. RISC-V toolchain with Newlib/Dramfs, for rv32im architecture, can be installed as below:
 
 ```
-git clone --recursive https://github.com/riscv/riscv-gnu-toolchain.git
-cd riscv-gnu-toolchain
-git config --file=.gitmodules submodule.riscv-newlib.url https://github.com/bespoke-silicon-group/bsg_newlib_dramfs.git
-git config --file=.gitmodules submodule.riscv-newlib.branch dramfs
-git submodule sync
-git submodule update --init --recursive --remote riscv-newlib
-make newlib
-make install
+$ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain.git
+$ cd riscv-gnu-toolchain
+$ git config --file=.gitmodules submodule.riscv-newlib.url https://github.com/bespoke-silicon-group/bsg_newlib_dramfs.git
+$ git config --file=.gitmodules submodule.riscv-newlib.branch dramfs
+$ git submodule sync
+$ git submodule update --init --recursive --remote riscv-newlib
+$ ./configure --prefix=<riscv_install_dir> --disable-linux --with-arch=rv32im
+$ make newlib
+$ make install
+```
+
+This readme demos usage of this project taking bare-metal [Spike](https://github.com/riscv/riscv-isa-sim) as an example runtime-system. To reproduce the same, you have to install spike with a patch. The patch creates a memory-mapped IO in Spike that helps us print without needing the proxy kernel.
+```
+$ git clone --recursive https://github.com/riscv/riscv-isa-sim.git;
+$ cd riscv-isa-sim
+$ git checkout tags/v1.0.0
+$ echo '
+---
+ fesvr/syscall.cc | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/fesvr/syscall.cc b/fesvr/syscall.cc
+index 6e8baf6..a2423eb 100644
+--- a/fesvr/syscall.cc
++++ b/fesvr/syscall.cc
+@@ -110,6 +110,9 @@ void syscall_t::handle_syscall(command_t cmd)
+       std::cerr << "*** FAILED *** (tohost = " << htif->exit_code() << ")" << std::endl;
+     return;
+   }
++  else if (cmd.payload() & 0x2){
++      std::cerr << char(cmd.payload() >> 8);
++  }
+   else // proxied system call
+     dispatch(cmd.payload());
+ 
+-- ' | git apply
+$ ./configure --prefix=<riscv_install_dir>
+$ make
+$ make install
 ```
 
 ## Porting
@@ -34,30 +65,57 @@ Porting Newlib/Dramfs to a RISC-V system requires following four steps:
 
 #### 1, 2. Interfacing functions:
 ```
-// Sample Implementation of Newlib/DRAMFS interface
-// dramfs_intf.c
+/*
+ * dramfs_intf.c
+ * 
+ * Sample Implementation of Newlib/DRAMFS interface
+ * for Spike
+ */
 
 #include <stdlib.h>
+#include <machine/dramfs_fs.h> // This header is installed with this project!
 
-/*  Prototype in this repo: extern void dramfs_exit(int)
-    Exit the simulation/runtime environment
- */
-void dramfs_exit(int exit_status){
-  if(exit_status == EXIT_SUCCESS)
+// Spike specific global variables.
+// Declared in crt.S
+extern volatile int tohost;
+extern volatile int fromhost;
+
+void dramfs_exit(int exit_status) {
+  if(exit_status == EXIT_SUCCESS) {
     // Exit the environment successfully
-  else
+    //
+    // Replace below code with code to exit
+    // successfully on your system.
+    
+    // Spike specifc code
+    volatile int* ptr = &tohost;
+    *ptr = 0x1;
+  } else {
     // Exit the environment with failure
+    // 
+    // Replace below code with code to exit
+    // with failure on your system.
+    
+    // Spike specifc code
+    volatile int* ptr = &tohost;
+    *ptr = 0x3;
+  }
+
+  // do nothing until we exit
+  while(1);
 }
 
-
-/*  Prototype in this repo: extern void dramfs_sendchar(char)
-    Displays a char on the console
- */
 void dramfs_sendchar(char ch) {
   // code to display ‘ch’
   // in many cases you may just want to have a memory
   // mapped I/O location that you write to
   // whether that is simulator magic, a NOC, a UART, or PCIe.
+  
+  // Spike specifc code
+  volatile int* ptr = &tohost;
+  *ptr = (ch << 8) | 0x2;
+  while(fromhost == 0);
+  fromhost = 0;
 }
 ```
 
@@ -66,16 +124,27 @@ void dramfs_sendchar(char ch) {
 The function `dramfs_fs_init` has to called before calling the main. This steps mounts the LittleFS image using a tiny block device driver implemeted by us. A sample C-runtime initialization is provided below:
 
 ```
-  # Sample crt.S
-  li sp, _sp                      # stack pointer
-  call dramfs_fs_init
-  bltz ra, 1f
-  lw a0, 0(sp)                    # argc
-  addi a1, sp, __SIZEOF_POINTER__ # argv
-  li a2, 0                        # envp = NULL
+.section .crtbegin,"a"
+
+.globl _start
+_start:
+
+  # initialize global pointer
+  la gp, _gp
+
+  # initialize stack pointer
+  la sp, _sp
+
+  call dramfs_fs_init # initialize dramfs
+  lw a0, 0(sp)        # argc
+  lw a1, -4(sp)       # argv
+  li a2, 0            # envp = NULL
   call main
-1:
   tail exit
+
+2:
+  # Should never this point
+  j 2b
 ```
 
 #### 4. Defining `_end` symbol in the linker command file:
@@ -84,19 +153,53 @@ This can be done as shown in the sample linker script below:
 
 ```
 /* link.ld */
+/* Sample linker command file for spike */
 
 SECTIONS
 {
-  . = 0x1000; /* program memory start */
-  .text : { *(.text) }
-  
-  . = 0x80000000; /* data memory start */
-  .data : { *(.data) }
-  .bss : { *(.bss) }
-  
-  _end = .; /* head starts after the data */
+  . = 0x80000000; /* Spike needs all user data after 0x80000000 */
 
-  _sp = 0xffffffff; /* stack starts from the end */
+  .text : {
+     *(.crtbegin)
+     *(.text)
+     *(.text.startup)
+     *(.text.*)
+  }
+
+  .data : {
+    *(.data*)
+    *(.rodata*)
+    *(.sdata .sdata.* .srodata*)
+  }
+
+  /* global pointer */
+  _gp = .;
+
+  .bss : {
+    *(.bss*)
+    *(.sbss*)
+  }
+
+
+  /* 
+   * 'tohost' and 'fromhost' are special symbols required by spike 
+   * for communication with host and they need 64 byte aligned
+   */
+
+  . = ALIGN(64);
+  tohost = .;
+  . = . + 4;
+
+  . = ALIGN(64);
+  fromhost = .;
+  . = . + 4;
+
+
+  /* Initial heap pointer */
+  _end = . ;
+ 
+  /* Initial stack pointer */
+  _sp = 0x81000000;
 }
 ```
 
@@ -106,12 +209,13 @@ Running a program with Newlib/Dramfs requires user to link an additional file wi
 
 Usage of `dramfs_mklfs`:
 ```
-dramfs_mklfs <lfs_block_size> <lfs_block_count> <input file 1> <input dir 1> <input file 2> ...
+dramfs_mklfs <lfs_block_size> <lfs_block_count> <inputfile1> <inputdir1> <inputfile2> ...
 ```
 
 After installation and porting, the procedure for running programs with Newlib/Dramfs is summarized by a sample program below. Let's say we want to run a file i/o program on a bare metal system which takes `hello.txt` as input.
 
 ```
+$ cat fhello.c 
 /*
  * fhello.c
  */
@@ -121,35 +225,35 @@ After installation and porting, the procedure for running programs with Newlib/D
 #include <string.h>
 
 int main() {
-  char c;
+  int c;
 
-  // Read from a file
+  /* Open hello.txt for reading */
   FILE *hello = fopen("hello.txt", "r");
   if(hello == NULL)
     return -1;
 
-  while((c = fgetc(hello)) != '\n') {
+
+  /* Iterate through the entire file
+   * and print the contents to stdout
+   */
+
+  putchar('\n');
+
+  while((c = fgetc(hello)) != EOF) {
     putchar(c);
   }
-  putchar('\n');
 
   fclose(hello);
   return 0;
 }
-```
-
-Contents of `hello.txt`:
-```
+$ cat hello.txt 
 Hello! This is Little FS!
-```
+$ <riscv_install_dir>/../riscv32-unknown-elf/bin/dramfs_mklfs 128 256 hello.txt > lfs_mem.c
+$ <riscv_install_dir>/riscv32-unknown-elf-gcc -c crt.S lfs_mem.c dramfs_intf.c fhello.c
+$ <riscv_install_dir>/riscv32-unknown-elf-gcc -nostartfiles -T link.ld lfs_mem.o crt.o dramfs_intf.o fhello.o  -o fhello
+$ <riscv_install_dir>/spike -l --isa=rv32im fhello 2> spike.log
 
-Above program with file I/O can be run on bare metal RISC-V system as shown below:
-```
-<toolchain_installation_dir>/riscv32-unknown-elf/bin/dramfs_mklfs 64 128 hello.txt > lfs_mem.c
-<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -c fhello.c -o fhello.o
-<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -c lfs_mem.c -o lfs_mem.o
-<toolchain_installation_dir>/bin/riscv32-unknown-elf-gcc -t link.ld fhello.o crt.o lfs_mem.o -o fhello
-./fhello
+Hello! This is Little FS!
 ```
 
 ## Notes
@@ -163,4 +267,5 @@ Above program with file I/O can be run on bare metal RISC-V system as shown belo
 [1] Bootstrapping Idea: https://drive.google.com/open?id=1_Ie94nZvyvMjEb1GQTPzfcBNaVs6xfVXZ_bHTH5_z3k  
 [2] LittleFS: https://github.com/ARMmbed/littlefs  
 [3] RISC-V BSP: https://github.com/riscv/riscv-newlib/tree/riscv-newlib-3.1.0/libgloss/riscv  
-[4] Newlib OS interface: https://sourceware.org/newlib/libc.html#Syscalls
+[4] Newlib OS interface: https://sourceware.org/newlib/libc.html#Syscalls  
+[5] Newlib porting guide: https://www.embecosm.com/appnotes/ean9/ean9-howto-newlib-1.0.html 
