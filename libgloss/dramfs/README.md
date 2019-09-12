@@ -76,7 +76,7 @@ Porting Newlib/Dramfs to a RISC-V system requires following four steps:
 #include <machine/dramfs_fs.h> // This header is installed with this project!
 
 // Spike specific global variables.
-// Declared in crt.S
+// Defined these symbols in the linker script
 extern volatile int tohost;
 extern volatile int fromhost;
 
@@ -124,6 +124,8 @@ void dramfs_sendchar(char ch) {
 The function `dramfs_fs_init` has to called before calling the main. This steps mounts the LittleFS image using a tiny block device driver implemeted by us. A sample C-runtime initialization is provided below:
 
 ```
+# crt.S
+
 .section .crtbegin,"a"
 
 .globl _start
