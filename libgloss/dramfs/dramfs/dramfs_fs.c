@@ -5,8 +5,6 @@
 #include "dramfs_fs.h"
 #include "dramfs_fdtable.h"
 
-lfs_t dramfs_fs;
-
 // File system memory pointer
 uint8_t* lfs_ptr = lfs_mem;
 
