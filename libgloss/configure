@@ -685,6 +685,7 @@ target_alias
 CCAS
 CCASFLAGS'
 ac_subdirs_all='doc
+dramfs
 aarch64
 arc
 epiphany
@@ -699,7 +700,7 @@ sparc_leon
 sparc
 wince
 mips
-dramfs
+riscv
 rs6000
 mn10200
 mn10300
@@ -731,6 +732,7 @@ tic6x
 iq2000
 or1k
 nios2
+dramfs
 libnosys'
 
 # Initialize some variables set by options.
@@ -2418,6 +2420,10 @@ config_testsuite=true
 config_libnosys=true
 
 case "${target}" in
+  *-*-*dramfs)
+	subdirs="$subdirs dramfs"
+
+	;;
   aarch64*-*-*)
 	subdirs="$subdirs aarch64"
 
@@ -2477,7 +2483,7 @@ case "${target}" in
 
 	;;
   riscv*-*-*)
-	subdirs="$subdirs dramfs"
+	subdirs="$subdirs riscv"
 
 	;;
   powerpc-*-*|powerpcle-*-*)
@@ -2607,6 +2613,10 @@ case "${target}" in
 	;;
   nios2-*-*)
 	subdirs="$subdirs nios2"
+
+	;;
+  *-*-*dramfs)
+	subdirs="$subdirs dramfs"
 
 	;;
 esac
