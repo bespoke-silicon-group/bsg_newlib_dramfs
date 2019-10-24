@@ -14,7 +14,7 @@ The idea is to implement file i/o syscalls by simply translating them to LFS fun
 Newlib/Dramfs is intended to be a separate Board Support Package (BSP) in Newlib. Newlib can be configured to install this BSP by setting the target to end with `dramfs`:
 
 ```
-$ ./configure --target=<any architeture>-<any vendor>-<any string you wish to prepend>dramfs [<other options>]
+$ ./configure --target=<AnyArchiteture>-<AnyVendor>-<AnyString>dramfs [<other options>]
 ```
 
 Since this BSP works with any ISA, architecture field could be anything!
