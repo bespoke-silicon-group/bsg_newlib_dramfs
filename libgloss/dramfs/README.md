@@ -102,7 +102,7 @@ This can be done as shown in the sample linker script below:
 
 ```
 /* link.ld */
-/* Sample linker command file for spike */
+/* Sample linker command file */
 
 SECTIONS
 {
