@@ -182,9 +182,6 @@ case "${target}" in
   nios2-*-*)
 	AC_CONFIG_SUBDIRS([nios2])
 	;;
-  *-*-*dramfs)
-	AC_CONFIG_SUBDIRS([dramfs])
-	;;
 esac
 
 dnl For now, don't bother configuring testsuite
