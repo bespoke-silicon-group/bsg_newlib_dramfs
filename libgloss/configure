@@ -732,7 +732,6 @@ tic6x
 iq2000
 or1k
 nios2
-dramfs
 libnosys'
 
 # Initialize some variables set by options.
@@ -2613,10 +2612,6 @@ case "${target}" in
 	;;
   nios2-*-*)
 	subdirs="$subdirs nios2"
-
-	;;
-  *-*-*dramfs)
-	subdirs="$subdirs dramfs"
 
 	;;
 esac
