@@ -24,10 +24,8 @@ Since this BSP works with any ISA, architecture field could be anything!
 Porting Newlib/Dramfs requires following four steps:
 1. Implement `dramfs_exit(int)` (routine to exit the execution environment). 
 2. Implement `dramfs_sendchar(char)` (routine to output non-file I/O (for debugging etc)).
-
-Since this BSP is a cross architecture BSP, following architecture specific init files have to provided.
-3. Implment C-runtime initiation including a call to `dramfs_fs_init()` in the crt.
-4. Implement linker command script including definition of `_end` symbol (heap pointer).
+3. Implment C-runtime initiation including a call to `dramfs_fs_init()` in it.
+4. Implement linker command script including definition of `_end` symbol (heap pointer) in it.
 
 #### 1, 2. Interfacing functions:
 ```
