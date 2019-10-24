@@ -11,55 +11,21 @@ The idea is to implement file i/o syscalls by simply translating them to LFS fun
 
 ## Installation
 
-Newlib/Dramfs is intended to be a separate Board Support Package (BSP) in Newlib and we plan to upstream it to Newlib. But currently, this project can be used with RISC-V GCC toolcahin by replacing the newlib submodule with this repository. RISC-V toolchain with Newlib/Dramfs, for rv32im architecture, can be installed as below:
+Newlib/Dramfs is intended to be a separate Board Support Package (BSP) in Newlib. Newlib can be configured to install this BSP by setting the target to end with `dramfs`:
 
 ```
-$ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain.git
-$ cd riscv-gnu-toolchain
-$ git config --file=.gitmodules submodule.riscv-newlib.url https://github.com/bespoke-silicon-group/bsg_newlib_dramfs.git
-$ git config --file=.gitmodules submodule.riscv-newlib.branch dramfs
-$ git submodule sync
-$ git submodule update --init --recursive --remote riscv-newlib
-$ ./configure --prefix=<riscv_install_dir> --disable-linux --with-arch=rv32im
-$ make newlib
-$ make install
+$ ./configure --target=<any architeture>-<any vendor>-<any string you wish to prepend>dramfs [<other options>]
 ```
 
-This readme demos usage of this project taking bare-metal [Spike](https://github.com/riscv/riscv-isa-sim) as an example runtime-system. To reproduce the same, you have to install spike with a patch. The patch creates a memory-mapped IO in Spike that helps us print without needing the proxy kernel.
-```
-$ git clone --recursive https://github.com/riscv/riscv-isa-sim.git;
-$ cd riscv-isa-sim
-$ git checkout tags/v1.0.0
-$ echo '
----
- fesvr/syscall.cc | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/fesvr/syscall.cc b/fesvr/syscall.cc
-index 6e8baf6..a2423eb 100644
---- a/fesvr/syscall.cc
-+++ b/fesvr/syscall.cc
-@@ -110,6 +110,9 @@ void syscall_t::handle_syscall(command_t cmd)
-       std::cerr << "*** FAILED *** (tohost = " << htif->exit_code() << ")" << std::endl;
-     return;
-   }
-+  else if (cmd.payload() & 0x2){
-+      std::cerr << char(cmd.payload() >> 8);
-+  }
-   else // proxied system call
-     dispatch(cmd.payload());
- 
--- ' | git apply
-$ ./configure --prefix=<riscv_install_dir>
-$ make
-$ make install
-```
+Since this BSP works with any ISA, architecture field could be anything!
 
 ## Porting
 
-Porting Newlib/Dramfs to a RISC-V system requires following four steps:
+Porting Newlib/Dramfs requires following four steps:
 1. Implement `dramfs_exit(int)` (routine to exit the execution environment). 
-2. Implement `dramfs_sendchar(char)` (routine to output non-file I/O (for debugging etc))
+2. Implement `dramfs_sendchar(char)` (routine to output non-file I/O (for debugging etc)).
+
+Since this BSP is a cross architecture BSP, following architecture specific init file has to provided.
 3. Call `dramfs_fs_init()` in the crt.
 4. Define `_end` symbol (heap pointer) in the linker command file.
 
@@ -69,36 +35,22 @@ Porting Newlib/Dramfs to a RISC-V system requires following four steps:
  * dramfs_intf.c
  * 
  * Sample Implementation of Newlib/DRAMFS interface
- * for Spike
  */
 
 #include <stdlib.h>
-#include <machine/dramfs_fs.h> // This header is installed with this project!
-
-// Spike specific global variables.
-// Defined these symbols in the linker script
-extern volatile int tohost;
-extern volatile int fromhost;
+#include <machine/dramfs_fs.h> // This header is installed with this BSP!
 
 void dramfs_exit(int exit_status) {
   if(exit_status == EXIT_SUCCESS) {
     // Exit the environment successfully
-    //
-    // Replace below code with code to exit
-    // successfully on your system.
     
-    // Spike specifc code
-    volatile int* ptr = &tohost;
-    *ptr = 0x1;
+    // Replace this with code to exit
+    // successfully on your system.
   } else {
     // Exit the environment with failure
-    // 
-    // Replace below code with code to exit
-    // with failure on your system.
     
-    // Spike specifc code
-    volatile int* ptr = &tohost;
-    *ptr = 0x3;
+    // Replace this with code to exit
+    // with failure on your system.
   }
 
   // do nothing until we exit
@@ -110,21 +62,18 @@ void dramfs_sendchar(char ch) {
   // in many cases you may just want to have a memory
   // mapped I/O location that you write to
   // whether that is simulator magic, a NOC, a UART, or PCIe.
-  
-  // Spike specifc code
-  volatile int* ptr = &tohost;
-  *ptr = (ch << 8) | 0x2;
-  while(fromhost == 0);
-  fromhost = 0;
 }
 ```
 
 #### 3. Adding `dramfs_fs_init` call to C-runtime initialization code:
 
-The function `dramfs_fs_init` has to called before calling the main. This steps mounts the LittleFS image using a tiny block device driver implemeted by us. A sample C-runtime initialization is provided below:
+The function `dramfs_fs_init` (implemented in this BSP) has to called before calling the main. This steps mounts the LittleFS image using a tiny block device driver implemeted by us. A sample C-runtime initialization is provided below:
 
 ```
-# crt.S
+# Sample crt.S
+# 
+# This is architecture specific; hence user would implement this code
+# Following example is for a RISC-V system.
 
 .section .crtbegin,"a"
 
@@ -182,21 +131,6 @@ SECTIONS
     *(.sbss*)
   }
 
-
-  /* 
-   * 'tohost' and 'fromhost' are special symbols required by spike 
-   * for communication with host and they need 64 byte aligned
-   */
-
-  . = ALIGN(64);
-  tohost = .;
-  . = . + 4;
-
-  . = ALIGN(64);
-  fromhost = .;
-  . = . + 4;
-
-
   /* Initial heap pointer */
   _end = . ;
  
@@ -207,7 +141,7 @@ SECTIONS
 
 ## Usage
 
-Running a program with Newlib/Dramfs requires user to link an additional file with initial LittleFS image consisting of input files. LittleFS image can be automatically generated by a tool called `dramfs_mklfs` that has already been installed with this package! The tool needs two inputs `lfs_block_size` and `lfs_block_count`. Total size of the file-system would be `lfs_block_size*lfs_block_count`.
+Running a program with Newlib/Dramfs requires user to link an additional file consisting of initial LittleFS image with input files to the program. LittleFS image can be automatically generated by a tool called `dramfs_mklfs` that has already been installed with this BSP! The tool needs two inputs `lfs_block_size` and `lfs_block_count`. Total size of the file-system would be `lfs_block_size*lfs_block_count`. See [2] to understand how you can play with these parameters.
 
 Usage of `dramfs_mklfs`:
 ```
@@ -250,10 +184,10 @@ int main() {
 }
 $ cat hello.txt 
 Hello! This is Little FS!
-$ <riscv_install_dir>/../riscv32-unknown-elf/bin/dramfs_mklfs 128 256 hello.txt > lfs_mem.c
-$ <riscv_install_dir>/riscv32-unknown-elf-gcc -c crt.S lfs_mem.c dramfs_intf.c fhello.c
-$ <riscv_install_dir>/riscv32-unknown-elf-gcc -nostartfiles -T link.ld lfs_mem.o crt.o dramfs_intf.o fhello.o  -o fhello
-$ <riscv_install_dir>/spike -l --isa=rv32im fhello 2> spike.log
+$ dramfs_mklfs 128 256 hello.txt > lfs_mem.c
+$ <xxx>-<xxx>-<xxx>dramfs-gcc -c crt.S lfs_mem.c dramfs_intf.c fhello.c
+$ <xxx>-<xxx>-<xxx>dramfs-gcc -nostartfiles -T link.ld lfs_mem.o crt.o dramfs_intf.o fhello.o  -o fhello
+$ <Your system's runtime executable> fhello
 
 Hello! This is Little FS!
 ```
