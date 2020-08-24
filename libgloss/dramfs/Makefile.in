@@ -54,6 +54,9 @@ gloss_srcs = \
 	sys_wait.c \
 	sys_write.c
 
+gloss_specs = \
+	nano.specs sim.specs
+
 # Multilib support variables.
 # TOP is used instead of MULTI{BUILD,SRC}TOP.
 
