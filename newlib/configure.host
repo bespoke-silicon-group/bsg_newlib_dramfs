@@ -287,7 +287,7 @@ case "${host_cpu}" in
   riscv*)
 	libm_machine_dir=riscv
 	machine_dir=riscv
-	newlib_cflags="${newlib_cflags} -DHAVE_NANOSLEEP -D_REENT_SMALL"
+	newlib_cflags="${newlib_cflags} -DHAVE_NANOSLEEP -DSMALL_MEMORY -D_REENT_SMALL"
 	default_newlib_atexit_dynamic_alloc="no"
 	have_init_fini=no
 	;;
