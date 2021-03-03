@@ -195,7 +195,7 @@ Hello! This is Little FS!
 - Newlib is implemented on top of a set of operating system syscalls listed in [4]. Newlib/dramfs currently implements `sbrk`, `open`, `close`, `read`, `write`, `exit`, `lseek`, `stat` and `fstat`. These are sufficient to handle the vast majority of newlib POSIX calls. For those that are not supported, they return setting appropriate error number. We plan to increase this set over time, and also encourage your pull requests.
 - Block size and count can be tweaked to improve performance depending on your system. More on this can be understood from [2].
 - Current implementations of syscalls are *not* thread-safe. So, this can only be used for single threaded programs as of now.
-- The modifications to newlib are solely contained to this file, and the directory https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/tree/dramfs/libgloss/dramfs
+- The modifications to newlib are solely contained to this file, and the directory https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/tree/dramfs/libgloss/dramfs.
 
 ## References
 
