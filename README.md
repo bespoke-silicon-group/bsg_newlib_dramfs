@@ -5,7 +5,7 @@
 
 Newlib is a light-weight C standard library implementation for embedded systems. It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
 
-Running POSIX programs on bare metal systems require some sort of implementation for file i/o and malloc. Malloc depends on just one system-call called sbrk, which essentially increments or decrements heap pointer as and when requested. Whereas, file i/o requires an actual file system, or an interface that can mimic a file system. This Newlib port uses an open-source lightweight file-system designed for embedded flash file systems by ARM called LittleFS (LFS). LittleFS also supports a DRAM-based file system, which is the one we use. 
+Running POSIX programs on bare metal systems require some sort of implementation for file i/o and malloc. Malloc depends on just one system-call called sbrk, which essentially increments or decrements heap pointer as and when requested. Whereas, file i/o requires an actual file system, or an interface that can mimic a file system. This Newlib port, which, we informally refer to as *Panic Room*, uses an open-source lightweight file-system designed for embedded flash file systems by ARM called LittleFS (LFS). LittleFS also supports a DRAM-based file system, which is the one we use. 
 
 The idea is to implement file i/o syscalls by simply translating them to LFS function calls, which in turn will operate on memory, rather than trying to use a more complex I/O emulation facility, like proxy kernels, that package up I/O calls and ship them over to a host. This allows for more reproducible I/O emulation, since the host is no longer an asynchronous process. It also eliminates the infrastructure pain caused by mapping these proxy-IO calls to different embodiments of the design -- simulator, VCS, verilator, FPGA emulation, ASIC testboard, and PCI-e hosted chip.
 
@@ -195,6 +195,7 @@ Hello! This is Little FS!
 - Newlib is implemented on top of a set of operating system syscalls listed in [4]. Newlib/dramfs currently implements `sbrk`, `open`, `close`, `read`, `write`, `exit`, `lseek`, `stat` and `fstat`. These are sufficient to handle the vast majority of newlib POSIX calls. For those that are not supported, they return setting appropriate error number. We plan to increase this set over time, and also encourage your pull requests.
 - Block size and count can be tweaked to improve performance depending on your system. More on this can be understood from [2].
 - Current implementations of syscalls are *not* thread-safe. So, this can only be used for single threaded programs as of now.
+- The modifications to newlib are solely contained to this file, and the directory https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/tree/dramfs/libgloss/dramfs
 
 ## References
 
