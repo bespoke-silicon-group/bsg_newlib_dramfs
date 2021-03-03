@@ -1,6 +1,8 @@
 # Newlib/DRAMFS  
 ###### Bandhav Veluri and Michael Taylor, Bespoke Silicon Group UW  
 
+Note: Mirror changes to this file to https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/blob/dramfs/README.md
+
 ## Introduction
 
 Newlib is a light-weight C standard library implementation for embedded systems. It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
