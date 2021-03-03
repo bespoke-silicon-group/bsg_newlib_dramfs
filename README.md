@@ -27,6 +27,10 @@ Porting Newlib/Dramfs requires following four steps:
 3. Implment C-runtime initiation including a call to `dramfs_fs_init()` in it.
 4. Implement linker command script including definition of `_end` symbol (heap pointer) in it.
 
+### Demo
+
+See https://github.com/bespoke-silicon-group/bsg_newlib_dramfs/tree/dramfs/libgloss/dramfs/demos/riscv for a demo of Panic Room on RISCV.
+
 #### 1, 2. Interfacing functions:
 ```
 /*
