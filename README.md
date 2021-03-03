@@ -1,4 +1,4 @@
-# Newlib/DRAMFS  
+# Newlib/DRAMFS (also known as Panic Room) 
 ###### Bandhav Veluri and Michael Taylor, Bespoke Silicon Group UW  
 
 ## Introduction
