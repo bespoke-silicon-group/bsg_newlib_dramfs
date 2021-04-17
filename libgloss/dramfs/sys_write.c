@@ -17,6 +17,7 @@ _write(int fd, const void *ptr, size_t len)
       char* cp = (char*) ptr;
       dramfs_sendchar(cp[i]);
     }
+    return len;
   }
 
   lfs_file_t *fptr = dramfs_get_file(fd);
