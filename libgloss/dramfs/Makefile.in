@@ -8,6 +8,7 @@ dramfs_incs = \
 	-I@srcdir@/dramfs/littlefs/bd
 
 dramfs_srcs = \
+	lfs_mem.c \
 	dramfs_fs.c \
 	dramfs_fdtable.c \
 	lfs.c \
@@ -53,6 +54,10 @@ gloss_srcs = \
 	sys_unlink.c \
 	sys_wait.c \
 	sys_write.c
+
+# Extra files
+
+crt0_asm      = crt0.S
 
 # Multilib support variables.
 # TOP is used instead of MULTI{BUILD,SRC}TOP.
@@ -204,6 +209,21 @@ install_hdrs += $(gloss_hdrs)
 install_libs += $(gloss_lib)
 install_specs += $(gloss_specs)
 install_bins += $(gloss_bins)
+
+#-------------------------------------------------------------------------
+# Build crt0.o
+#-------------------------------------------------------------------------
+
+crt0_obj  = $(patsubst %.S, %.o, $(crt0_asm))
+crt0_deps = $(patsubst %.S, %.d, $(crt0_asm))
+
+$(crt0_obj) : %.o : %.S
+	$(COMPILE) -c $<
+
+deps += $(crt0_deps)
+junk += $(crt0_deps) $(crt0_obj)
+
+install_libs += $(crt0_obj)
 
 #-------------------------------------------------------------------------
 # Autodependency files
