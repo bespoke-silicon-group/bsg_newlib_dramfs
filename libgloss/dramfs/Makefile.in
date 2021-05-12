@@ -53,7 +53,9 @@ gloss_srcs = \
 	sys_times.c \
 	sys_unlink.c \
 	sys_wait.c \
-	sys_write.c
+	sys_write.c \
+	sys_chdir.c \
+	sys_getcwd.c
 
 # Extra files
 

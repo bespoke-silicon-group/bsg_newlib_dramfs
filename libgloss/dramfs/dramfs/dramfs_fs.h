@@ -3,6 +3,10 @@
 
 #include "lfs.h"
 
+// Current working directory
+#define PATHLENGTH 100
+char cwd[PATHLENGTH] = "/";
+
 // Toplevel filesystem struct
 extern lfs_t dramfs_fs;
 

@@ -24,7 +24,14 @@ _open(const char *name, int flags, int mode)
   } else {
     lfs_file_t *fptr = dramfs_get_file(fd);
 
-    int ret = lfs_file_open(&dramfs_fs, fptr, name, lfs_flags);
+    char absname[PATHLENGTH];
+    if(name[0] == '/')
+      strcpy(absname, name);
+    else {
+      strcpy(absname, cwd);
+      strcat(absname, name);
+    }
+    int ret = lfs_file_open(&dramfs_fs, fptr, (const char*)absname, lfs_flags);
 
     if(ret < 0) {
       errno = ret;

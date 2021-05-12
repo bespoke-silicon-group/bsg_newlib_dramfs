@@ -795,7 +795,7 @@ static int lfs_dir_next(lfs_t *lfs, lfs_dir_t *dir, lfs_entry_t *entry) {
     return 0;
 }
 
-static int lfs_dir_find(lfs_t *lfs, lfs_dir_t *dir,
+int lfs_dir_find(lfs_t *lfs, lfs_dir_t *dir,
         lfs_entry_t *entry, const char **path) {
     const char *pathname = *path;
     size_t pathlen;

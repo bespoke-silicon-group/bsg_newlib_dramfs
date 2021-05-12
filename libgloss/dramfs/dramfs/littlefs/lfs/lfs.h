@@ -15,7 +15,6 @@ extern "C"
 {
 #endif
 
-
 /// Version info ///
 
 // Software library version
@@ -493,6 +492,7 @@ int lfs_traverse(lfs_t *lfs, int (*cb)(void*, lfs_block_t), void *data);
 // Returns a negative error code on failure.
 int lfs_deorphan(lfs_t *lfs);
 
+int lfs_dir_find(lfs_t *lfs, lfs_dir_t *dir, lfs_entry_t *entry, const char **path);
 
 #ifdef __cplusplus
 } /* extern "C" */
