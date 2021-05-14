@@ -23,6 +23,6 @@ extern void dramfs_exit(int);
 extern void dramfs_sendchar(char);
 
 // LFS init routine: Should be called before calling main
-int dramfs_fs_init(void);
+int dramfs_fs_init(void) __attribute__((weak));
 
 #endif // DRAMFS_FS_H
