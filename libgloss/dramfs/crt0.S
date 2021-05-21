@@ -63,6 +63,13 @@ _start:
   addi x30, x0, 0
   addi x31, x0, 0
 
+  # Clear the bss segment
+  la      a0, _edata
+  la      a2, _end
+  sub     a2, a2, a0
+  li      a1, 0
+  call    memset
+
   # Initialize LFS
   call dramfs_fs_init
   bnez a0, 1f
