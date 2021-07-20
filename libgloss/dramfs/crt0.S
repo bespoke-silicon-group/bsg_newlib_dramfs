@@ -63,6 +63,17 @@ _start:
   addi x30, x0, 0
   addi x31, x0, 0
 
+  # Skip hart0 init if hart > 0
+  csrr t0, mhartid
+  beqz t0, init_hart0
+
+# Wait for hart0 to be done, then 
+wait_for_sync:
+  ld t0, _sync
+  beqz t0, init_hartn
+  j wait_for_sync
+
+init_hart0:
   # Clear the bss segment
   la      a0, _edata
   la      a2, _end
@@ -78,6 +89,12 @@ _start:
   call atexit                #  to be called upon exit
   call __libc_init_array     # Run global initialization functions
 
+  # Release other harts
+  li t0, 1
+  la t1, _sync
+  sd t0, 0x0(t1)
+
+init_hartn:
   # Load command line arguments
   la a0, _argc
   lw a0, 0(a0) # a0 = argc
@@ -125,3 +142,11 @@ _gp:
 .align 20
 _sp:
   .size _sp, .-_sp
+
+.globl _sync
+.weak  _sync
+.align 20
+_sync:
+  .size _sync, .-_sync
+
+
