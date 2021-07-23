@@ -137,16 +137,15 @@ _argv:
 _gp:
   .size _gp, .-_gp
 
-.globl _sp
-.weak  _sp
-.align 20
-_sp:
-  .size _sp, .-_sp
-
+.section .sdata
 .globl _sync
 .weak  _sync
 .align 20
 _sync:
   .size _sync, .-_sync
 
-
+.globl _sp
+.weak  _sp
+.align 20
+_sp:
+  .size _sp, .-_sp
