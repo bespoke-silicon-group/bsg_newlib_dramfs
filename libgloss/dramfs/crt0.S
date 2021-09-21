@@ -70,7 +70,7 @@ _start:
 # Wait for hart0 to be done, then 
 wait_for_sync:
   ld t0, _sync
-  beqz t0, init_hartn
+  bnez t0, init_hartn
   j wait_for_sync
 
 init_hart0:
