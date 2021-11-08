@@ -82,13 +82,14 @@ enum lfs_type {
 // File open flags
 enum lfs_open_flags {
     // open flags
-    LFS_O_RDONLY = 1,        // Open a file as read only
-    LFS_O_WRONLY = 2,        // Open a file as write only
-    LFS_O_RDWR   = 3,        // Open a file as read and write
-    LFS_O_CREAT  = 0x0100,   // Create a file if it does not exist
-    LFS_O_EXCL   = 0x0200,   // Fail if a file already exists
-    LFS_O_TRUNC  = 0x0400,   // Truncate the existing file to zero size
-    LFS_O_APPEND = 0x0800,   // Move to end of file on every write
+    LFS_O_RDONLY   = 1,      // Open a file as read only
+    LFS_O_WRONLY   = 2,      // Open a file as write only
+    LFS_O_RDWR     = 3,      // Open a file as read and write
+    LFS_O_CREAT    = 0x0100, // Create a file if it does not exist
+    LFS_O_EXCL     = 0x0200, // Fail if a file already exists
+    LFS_O_TRUNC    = 0x0400, // Truncate the existing file to zero size
+    LFS_O_APPEND   = 0x0800, // Move to end of file on every write
+    LFS_O_NONBLOCK = 0x1000, // Open a file as nonblocking
 
     // internally used flags
     LFS_F_DIRTY   = 0x10000, // File does not match storage

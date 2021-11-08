@@ -16,10 +16,16 @@ ssize_t _read(int fd, void *ptr, size_t len)
     // Return early on len == 0
     if (len == 0) return (ssize_t) 0;
 
-    // We buffer until len or newline, which is standard behavior for a console
     int ch;
-    // Read just 1 character to start
-    while ((ch = dramfs_getchar()) == -1);
+    if (dramfs_nonblock_fd(fd) == 0) {
+      // Block to read just 1 character to start
+      while ((ch = dramfs_getchar()) == -1);
+    } else {
+      // Read the first character, and return immediately if it's EOF
+      if ((ch = dramfs_getchar()) == -1) return (ssize_t) 0;
+    }
+
+    // Keep reading until new
     int i = 0;
     do {
       data[i++] = ch;
