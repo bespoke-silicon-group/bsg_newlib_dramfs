@@ -9,6 +9,7 @@
 
 // Dummy functions needed by crt0.S
 void __attribute__((weak)) dramfs_sendchar(char ch) {}
+int __attribute__((weak)) dramfs_getchar(void) {}
 void __attribute__((weak)) dramfs_exit(int exit_status) {}
 
 // LFS configuration

@@ -12,6 +12,8 @@ void dramfs_init_fdtable(void);
 
 int dramfs_check_fd(int fd);
 
+int dramfs_nonblock_fd(int fd);
+
 int dramfs_reserve_fd(void);
 
 int dramfs_free_fd(int fd);

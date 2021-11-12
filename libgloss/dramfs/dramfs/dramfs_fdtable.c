@@ -3,6 +3,7 @@
 
 typedef struct dramfs_fd_entry {
   int used;
+  int nonblock;
   lfs_file_t file;
 } dramfs_fd_entry_t;
 
@@ -11,6 +12,7 @@ static dramfs_fd_entry_t dramfs_fdtable[DRAMFS_MAX_FDS];
 void dramfs_init_fdtable(void) {
   for(int i=0; i<DRAMFS_MAX_FDS; i++) {
     dramfs_fdtable[i].used = 0;
+    dramfs_fdtable[i].nonblock = 0;
   }
 }
 
@@ -18,6 +20,14 @@ int dramfs_check_fd(int fd) {
   if(fd < 0 || fd >= DRAMFS_MAX_FDS || dramfs_fdtable[fd].used == 0) {
     errno = EBADF;
     return -1;
+  }
+
+  return 0;
+}
+
+int dramfs_nonblock_fd(int fd) {
+  if(dramfs_fdtable[fd].nonblock == 1) {
+    return 1;
   }
 
   return 0;

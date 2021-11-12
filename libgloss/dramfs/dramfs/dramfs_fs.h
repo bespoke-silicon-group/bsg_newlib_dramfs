@@ -22,6 +22,10 @@ extern void dramfs_exit(int);
 // Definition provided externally by user
 extern void dramfs_sendchar(char);
 
+// Utility to get a char from console
+// Definition provided externally by user
+extern int dramfs_getchar(void);
+
 // LFS init routine: Should be called before calling main
 int dramfs_fs_init(void) __attribute__((weak));
 
