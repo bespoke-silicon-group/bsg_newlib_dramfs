@@ -10,7 +10,7 @@ ssize_t _read(int fd, void *ptr, size_t len)
     return -1;
   }
 
-  if(dramfs_check_fd(fd) == 0) {
+  if(fd == 0) {
     uint8_t *data = (uint8_t *)ptr;
 
     // Return early on len == 0
