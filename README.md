@@ -3,7 +3,10 @@
 
 ## Introduction
 
-Newlib is a light-weight C standard library implementation for embedded systems. It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
+Newlib is a light-weight C standard library implementation for embedded systems that typical relies on a "board support package" to call out to real I/O devices. 
+We provide a BSP that is based on a RAMDISK that you compile into your binary. 
+
+It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
 
 Running POSIX programs on bare metal systems require some sort of implementation for file i/o and malloc. Malloc depends on just one system-call called sbrk, which essentially increments or decrements heap pointer as and when requested. Whereas, file i/o requires an actual file system, or an interface that can mimic a file system. This Newlib port, which, we informally refer to as *Panic Room*, uses an open-source lightweight file-system designed for embedded flash file systems by ARM called LittleFS (LFS). LittleFS also supports a DRAM-based file system, which is the one we use. 
 
