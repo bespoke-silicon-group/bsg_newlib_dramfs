@@ -4,8 +4,8 @@
 ## Introduction
 
 TLDR: Newlib is a light-weight C standard library implementation for embedded systems that typical relies on a "board support package" to call out to real I/O devices. 
-We provide a BSP that is based on a RAMDISK that you compile into your binary. This provides support for read/write filesystem without 
-needing any underlying hardware except DRAM.
+This module's secret sauce is to provide a BSP that is based on a RAMDISK that you compile into your binary. This provides support for read/write filesystem without 
+needing any underlying hardware except DRAM. You can run apps like SpecInt without any actual I/O support in your HW!
 
 It elegantly separates system specific functionality (system calls) into an easily portable portion called Libgloss. Libgloss contains system call implementations for different architectures/systems in it. Porting Newlib to an architecture/system essentially involves porting these system call implementations in Libgloss. Complete guide for porting Newlib can be found in [5].
 
