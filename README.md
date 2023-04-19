@@ -3,7 +3,7 @@
 
 ## Introduction
 
-TLDR: Newlib is a light-weight C standard library implementation for embedded systems that typical relies on a "board support package" to call out to real I/O devices. 
+TLDR: Newlib is a light-weight C standard library implementation for embedded systems that typically relies on a "board support package" to call out to real I/O devices. 
 This module's secret sauce is to provide a BSP that is based on a RAMDISK that you compile into your binary. This provides support for read/write filesystem without 
 needing any underlying hardware except DRAM. You can run apps like SpecInt without any actual I/O support in your HW!
 
