@@ -919,6 +919,9 @@ fi
 libgloss_dir="$target_cpu"
 
 case "${target}" in
+  *-*-*-dramfs)
+    libgloss_dir=dramfs
+    ;;
   sh*-*-pe|mips*-*-pe|*arm-wince-pe)
     libgloss_dir=wince
     ;;

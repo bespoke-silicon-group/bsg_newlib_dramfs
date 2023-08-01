@@ -1285,6 +1285,7 @@ then
 
 # First recognize some ad-hoc caes, or perhaps split kernel-os, or else just
 # set os.
+
 case $basic_os in
 	gnu/linux*)
 		kernel=linux
@@ -1318,6 +1319,8 @@ EOF
 		os=$basic_os
 		;;
 esac
+echo "TEST TEST $basic_os"
+
 
 # Now, normalize the OS (knowing we just have one component, it's not a kernel,
 # etc.)
@@ -1725,7 +1728,7 @@ case $os in
 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
-	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
+	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | dramfs*)
 		;;
 	# This one is extra strict with allowed versions
 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
@@ -1762,6 +1765,8 @@ case $kernel-$os in
 		;;
 	*-eabi* | *-gnueabi*)
 		;;
+    elf-dramfs)
+        ;;
 	-*)
 		# Blank kernel with real OS is always fine.
 		;;
