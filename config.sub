@@ -1319,8 +1319,6 @@ EOF
 		os=$basic_os
 		;;
 esac
-echo "TEST TEST $basic_os"
-
 
 # Now, normalize the OS (knowing we just have one component, it's not a kernel,
 # etc.)
