@@ -118,7 +118,17 @@ __mtvec_handler:
   tail exit
   .size __mtvec_handler, .-__mtvec_handler
 
+.section .sdata
+.globl _gp
+.weak  _gp
+.align 1
+.align 12
+_gp:
+  .size _gp, .-_gp
+
 # Default command line args
+.section .sdata
+.align 20
 .globl _argc
 .weak  _argc
 .globl _argv
@@ -128,14 +138,6 @@ _argc:
 _argv:
   .word 0x00000000
   .size _argc, .-_argc
-
-.section .sdata
-.globl _gp
-.weak  _gp
-.align 1
-.align 12
-_gp:
-  .size _gp, .-_gp
 
 .section .sdata
 .globl _sync
