@@ -8,6 +8,7 @@
 #include "lfs_bd.h"
 
 // Dummy functions needed by crt0.S
+int __attribute__((weak)) dramfs_init(void) {}
 void __attribute__((weak)) dramfs_sendchar(char ch) {}
 int __attribute__((weak)) dramfs_getchar(void) {}
 void __attribute__((weak)) dramfs_exit(int exit_status) {}
