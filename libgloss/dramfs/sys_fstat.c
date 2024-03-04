@@ -1,10 +1,12 @@
 #include <sys/stat.h>
 #include <dramfs_fs.h>
 #include <dramfs_fdtable.h>
+#include "systrace.h"
 
 int
 _fstat(int file, struct stat *st)
 {
+  sys_tick(SYS_fstat);
   lfs_file_t *fptr;
   struct lfs_info finfo;
 
@@ -17,5 +19,6 @@ _fstat(int file, struct stat *st)
   st->st_size = (off_t) fptr->size;
   st->st_blksize = (blksize_t) dramfs_fs_cfg.block_size;
   st->st_blocks  = (blkcnt_t) dramfs_fs_cfg.block_count;
+  sys_tock();
   return 0;
 }

@@ -2,11 +2,13 @@
 #include <fcntl.h>
 #include "dramfs_fdtable.h"
 #include "dramfs_fs.h"
+#include "systrace.h"
 
 /* Open a file.  */
 int
 _open(const char *name, int flags, int mode)
 {
+  sys_tick(SYS_open);
   int fd = dramfs_reserve_fd();
   int lfs_flags = 0;
 
@@ -31,6 +33,7 @@ _open(const char *name, int flags, int mode)
       errno = ret;
       return -1;
     } else {
+      sys_tock();
       return fd;
     }
   }

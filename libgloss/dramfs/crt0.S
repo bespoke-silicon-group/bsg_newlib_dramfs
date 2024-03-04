@@ -82,7 +82,7 @@ init_hart0:
   call    memset
 
   # Initialize LFS
-  call dramfs_fs_init
+  call dramfs_init
   bnez a0, 1f
 
   la   a0, __libc_fini_array # Register global termination functions

@@ -1,3 +1,5 @@
+#include "systrace.h"
+
 // Dynamic allocation in the dram
 // TODO: add mutex
 extern char _end[]; /* _end is set in the linker command file */
@@ -13,10 +15,14 @@ char *
 _sbrk (nbytes)
      int nbytes;
 {
+  sys_tick(SYS_brk);
+
   char        *base;
   
   base = heap_ptr;
   heap_ptr += nbytes;
+
+  sys_tock();
 
   return base;
 }

@@ -8,6 +8,7 @@ dramfs_incs = \
 	-I@srcdir@/dramfs/littlefs/bd
 
 dramfs_srcs = \
+	systrace.c \
 	lfs_mem.c \
 	dramfs_fs.c \
 	dramfs_fdtable.c \
@@ -16,6 +17,7 @@ dramfs_srcs = \
 	lfs_bd.c
 
 dramfs_hdrs = \
+	systrace.h \
 	dramfs/dramfs_fs.h \
 	dramfs/dramfs_fdtable.h \
 	dramfs/littlefs/lfs/lfs.h \

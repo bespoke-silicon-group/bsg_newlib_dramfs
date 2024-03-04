@@ -1,12 +1,14 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <dramfs_fs.h>
+#include "systrace.h"
 
 /* Status of a file (by name).  */
 
 int
 _stat(const char *file, struct stat *st)
 {
+  sys_tick(SYS_stat);
   struct lfs_info finfo;
 
   int res = lfs_stat(&dramfs_fs, file, &finfo);
@@ -18,6 +20,7 @@ _stat(const char *file, struct stat *st)
     st->st_size = (off_t) finfo.size;
     st->st_blksize = (blksize_t) dramfs_fs_cfg.block_size;
     st->st_blocks  = (blkcnt_t) dramfs_fs_cfg.block_count;
+    sys_tock();
     return 0;
   }
 }

@@ -3,9 +3,11 @@
 #-------------------------------------------------------------------------
 
 gloss_hdrs = \
+	systrace.h \
 	machine/syscall.h \
 
 gloss_srcs = \
+	systrace.c \
 	nanosleep.c \
 	sys_access.c \
 	sys_chdir.c \

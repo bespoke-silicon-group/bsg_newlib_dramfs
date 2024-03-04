@@ -13,6 +13,7 @@
 #define _INTERNAL_SYSCALL_H
 
 #include <errno.h>
+#include "systrace.h"
 
 static inline long
 __syscall_error(long a0)
@@ -46,7 +47,9 @@ __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3, long _a4, lon
 static inline long
 syscall_errno(long n, long _a0, long _a1, long _a2, long _a3, long _a4, long _a5)
 {
+  sys_tick((int)n);
   long a0 = __internal_syscall (n, _a0, _a1, _a2, _a3, _a4, _a5);
+  sys_tock();
 
   if (a0 < 0)
     return __syscall_error (a0);
