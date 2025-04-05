@@ -1725,6 +1725,7 @@ case $os in
 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+             | dramfs* \
 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
 		;;
 	# This one is extra strict with allowed versions
@@ -1762,6 +1763,8 @@ case $kernel-$os in
 		;;
 	*-eabi* | *-gnueabi*)
 		;;
+        elf-dramfs*)
+        ;;
 	-*)
 		# Blank kernel with real OS is always fine.
 		;;
