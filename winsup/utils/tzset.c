@@ -78,7 +78,7 @@ reg_enum (HKEY hkey, int idx, PWCHAR name, DWORD size)
 	 == ERROR_SUCCESS;
 }
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE *stream)
 {
   fprintf (stream, ""
@@ -99,6 +99,7 @@ usage (FILE *stream)
   "\n"
   "      setenv TZ `%1$s`\n"
   "\n", program_invocation_short_name);
+  exit (stream == stdout ? 0 : 1);
 };
 
 static void
@@ -118,9 +119,8 @@ print_version ()
 int
 main (int argc, char **argv)
 {
-  BOOL ret;
-  HKEY hkey, skey;
-  WCHAR keyname[256], stdname[256], std2name[256], country[10], *spc;
+  HKEY hkey;
+  WCHAR keyname[256], country[10], *spc;
   GEOID geo;
   int opt, idx, gotit = -1;
 
@@ -130,7 +130,6 @@ main (int argc, char **argv)
       {
       case 'h':
 	usage (stdout);
-	return 0;
       case 'V':
 	print_version ();
 	return 0;
@@ -140,10 +139,7 @@ main (int argc, char **argv)
 	return 1;
       }
   if (optind < argc)
-    {
-	usage (stderr);
-	return 1;
-    }
+    usage (stderr);
 
   /* First fetch current timezone information from registry. */
   hkey = reg_open (HKEY_LOCAL_MACHINE, REG_TZINFO, "timezone information");
@@ -153,40 +149,8 @@ main (int argc, char **argv)
      job a lot. */
   if (!reg_query (hkey, L"TimeZoneKeyName", keyname, sizeof keyname, NULL))
     {
-      /* Pre-Vista we have a lot more to do.  First fetch the name of the
-	 Standard (non-DST) timezone.  If we can't get that, give up. */
-      if (!reg_query (hkey, L"StandardName", stdname, sizeof stdname,
-		      "timezone information"))
-	{
-	  reg_close (hkey);
-	  return 1;
-	}
       reg_close (hkey);
-      /* Now open the timezone database registry key.  Every subkey is a
-         timezone.  The key name is what we're after, but to find the right
-	 one, we have to compare the name of the previously fetched
-	 "StandardName" with the "Std" value in the timezone info... */
-      hkey = reg_open (HKEY_LOCAL_MACHINE, REG_TZDB, "timezone database");
-      if (!hkey)
-	return 1;
-      for (idx = 0; reg_enum (hkey, idx, keyname, sizeof keyname); ++idx)
-	{
-	  skey = reg_open (hkey, keyname, NULL);
-	  if (skey)
-	    {
-	      /* ...however, on MUI-enabled machines, the names are not stored
-		 directly in the above StandardName, rather it is a resource
-		 pointer into tzres.dll.  This is stored in MUI_Std.
-		 Fortunately it's easy to recognize this situation: If
-		 StandardName starts with @, it's a resource pointer, otherwise
-		 it's the cleartext value. */
-	      ret = reg_query (skey, stdname[0] == L'@' ? L"MUI_Std" : L"Std",
-			       std2name, sizeof std2name, NULL);
-	      reg_close (skey);
-	      if (ret && !wcscmp (stdname, std2name))
-		break;
-	    }
-	}
+      return 1;
     }
   reg_close (hkey);
 

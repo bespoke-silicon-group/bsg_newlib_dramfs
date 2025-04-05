@@ -17,6 +17,7 @@ details. */
 #include "cygtls.h"
 #include "sync.h"
 #include "ntdll.h"
+#include "mmap_alloc.h"
 
 /* __getpagesize is only available from libcygwin.a */
 #undef SHMLBA
@@ -112,11 +113,11 @@ struct shm_attached_list {
 
 static SLIST_HEAD (, shm_attached_list) sph_list;
 
-static NO_COPY muto shm_guard;
-#define SLIST_LOCK()	(shm_guard.init ("shm_guard")->acquire ())
-#define SLIST_UNLOCK()	(shm_guard.release ())
+static NO_COPY SRWLOCK shm_lock = SRWLOCK_INIT;
+#define SLIST_LOCK()    (AcquireSRWLockExclusive (&shm_lock))
+#define SLIST_UNLOCK()  (ReleaseSRWLockExclusive (&shm_lock))
 
-int __stdcall
+int
 fixup_shms_after_fork ()
 {
   if (!SLIST_FIRST (&sph_list))
@@ -173,22 +174,22 @@ shmat (int shmid, const void *shmaddr, int shmflg)
 	 shmid if one exists.  Since shmctl inserts a new entry for this
 	 shmid into ssh_list automatically, we just have to go through
 	 that list again.  If that still fails, well, bad luck. */
+      SLIST_UNLOCK ();
       if (shmid && shmget ((key_t) shmid, 0, IPC_KEY_IS_SHMID) != -1)
 	{
+	  SLIST_LOCK ();
 	  SLIST_FOREACH (ssh_entry, &ssh_list, ssh_next)
 	    {
 	      if (ssh_entry->shmid == shmid)
-		break;
+		goto inc_ref_count;
 	    }
-	}
-      if (!ssh_entry)
-	{
-	  /* Invalid shmid */
-	  set_errno (EINVAL);
 	  SLIST_UNLOCK ();
-	  return (void *) -1;
 	}
+      /* Invalid shmid */
+      set_errno (EINVAL);
+      return (void *) -1;
     }
+inc_ref_count:
   /* Early increment ref counter.  This allows further actions to run with
      unlocked lists, because shmdt or shmctl(IPC_RMID) won't delete this
      ssh_entry. */
@@ -220,8 +221,9 @@ shmat (int shmid, const void *shmaddr, int shmflg)
       return (void *) -1;
     }
   NTSTATUS status;
-  vm_object_t ptr = NULL;
   SIZE_T viewsize = ssh_entry->size;
+  vm_object_t ptr = mmap_alloc.alloc (NULL, viewsize, false);
+
   ULONG access = (shmflg & SHM_RDONLY) ? PAGE_READONLY : PAGE_READWRITE;
   status = NtMapViewOfSection (ssh_entry->hdl, NtCurrentProcess (), &ptr, 0,
 			       ssh_entry->size, NULL, &viewsize, ViewShare,

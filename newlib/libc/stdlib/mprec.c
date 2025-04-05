@@ -86,6 +86,11 @@
 #include <reent.h>
 #include "mprec.h"
 
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local struct _Bigint *_tls_mp_p5s;
+_Thread_local struct _Bigint **_tls_mp_freelist;
+#endif
+
 /* This is defined in sys/reent.h as (sizeof (size_t) << 3) now, as in NetBSD.
    The old value of 15 was wrong and made newlib vulnerable against buffer
    overrun attacks (CVE-2009-0689), same as other implementations of gdtoa
@@ -178,7 +183,7 @@ multadd (struct _reent *ptr,
     {
       if (wds >= b->_maxwds)
 	{
-	  b1 = Balloc (ptr, b->_k + 1);
+	  b1 = eBalloc (ptr, b->_k + 1);
 	  Bcopy (b1, b);
 	  Bfree (ptr, b);
 	  b = b1;
@@ -203,11 +208,11 @@ s2b (struct _reent * ptr,
   x = (nd + 8) / 9;
   for (k = 0, y = 1; x > y; y <<= 1, k++);
 #ifdef Pack_32
-  b = Balloc (ptr, k);
+  b = eBalloc (ptr, k);
   b->_x[0] = y9;
   b->_wds = 1;
 #else
-  b = Balloc (ptr, k + 1);
+  b = eBalloc (ptr, k + 1);
   b->_x[0] = y9 & 0xffff;
   b->_wds = (b->_x[1] = y9 >> 16) ? 2 : 1;
 #endif
@@ -317,7 +322,7 @@ i2b (struct _reent * ptr, int i)
 {
   _Bigint *b;
 
-  b = Balloc (ptr, 1);
+  b = eBalloc (ptr, 1);
   b->_x[0] = i;
   b->_wds = 1;
   return b;
@@ -346,7 +351,7 @@ mult (struct _reent * ptr, _Bigint * a, _Bigint * b)
   wc = wa + wb;
   if (wc > a->_maxwds)
     k++;
-  c = Balloc (ptr, k);
+  c = eBalloc (ptr, k);
   for (x = c->_x, xa = x + wc; x < xa; x++)
     *x = 0;
   xa = a->_x;
@@ -470,7 +475,7 @@ lshift (struct _reent * ptr, _Bigint * b, int k)
   n1 = n + b->_wds + 1;
   for (i = b->_maxwds; n1 > i; i <<= 1)
     k1++;
-  b1 = Balloc (ptr, k1);
+  b1 = eBalloc (ptr, k1);
   x1 = b1->_x;
   for (i = 0; i < n; i++)
     *x1++ = 0;
@@ -559,7 +564,7 @@ diff (struct _reent * ptr,
   i = cmp (a, b);
   if (!i)
     {
-      c = Balloc (ptr, 0);
+      c = eBalloc (ptr, 0);
       c->_wds = 1;
       c->_x[0] = 0;
       return c;
@@ -573,7 +578,7 @@ diff (struct _reent * ptr,
     }
   else
     i = 0;
-  c = Balloc (ptr, a->_k);
+  c = eBalloc (ptr, a->_k);
   c->_sign = i;
   wa = a->_wds;
   xa = a->_x;
@@ -775,9 +780,9 @@ d2b (struct _reent * ptr,
 #endif
 
 #ifdef Pack_32
-  b = Balloc (ptr, 1);
+  b = eBalloc (ptr, 1);
 #else
-  b = Balloc (ptr, 2);
+  b = eBalloc (ptr, 2);
 #endif
   x = b->_x;
 

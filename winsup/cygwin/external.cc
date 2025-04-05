@@ -63,19 +63,23 @@ fillout_pinfo (pid_t pid, int winpid)
       _pinfo *p = pids[i];
       i++;
 
+      /* Native Windows process not started from Cygwin have no procinfo
+	 attached.  They don't have a real Cygwin PID either.  We fake a
+	 Cygwin PID beyond MAX_PID. */
       if (!p)
 	{
-	  if (!nextpid && thispid != (DWORD) pid)
+	  if (!nextpid && thispid + MAX_PID != (DWORD) pid)
 	    continue;
-	  ep.pid = cygwin_pid (thispid);
+	  ep.pid = thispid + MAX_PID;
 	  ep.dwProcessId = thispid;
 	  ep.process_state = PID_IN_USE;
-	  ep.ctty = -1;
+	  ep.ctty = CTTY_UNINITIALIZED;
 	  break;
 	}
-      else if (nextpid || p->pid == pid || (winpid && thispid == (DWORD) pid))
+      else if (nextpid || p->pid == pid)
 	{
-	  ep.ctty = (p->ctty < 0 || iscons_dev (p->ctty)) ? p->ctty : device::minor (p->ctty);
+	  ep.ctty = (!CTTY_IS_VALID (p->ctty) || iscons_dev (p->ctty))
+		    ? p->ctty : device::minor (p->ctty);
 	  ep.pid = p->pid;
 	  ep.ppid = p->ppid;
 	  ep.dwProcessId = p->dwProcessId;
@@ -136,7 +140,7 @@ create_winenv (const char * const *env)
 {
   int unused_envc;
   PWCHAR envblock = NULL;
-  char **envp = build_env (env ?: cur_environ (), envblock, unused_envc, false,
+  char **envp = build_env (env ?: environ, envblock, unused_envc, false,
 			   NULL);
   PWCHAR p = envblock;
 
@@ -242,13 +246,6 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_USER_DATA:
-#ifdef __i386__
-	/* This is a kludge to work around a version of _cygwin_common_crt0
-	   which overwrote the cxx_malloc field with the local DLL copy.
-	   Hilarity ensues if the DLL is not loaded like while the process
-	   is forking. */
-	__cygwin_user_data.cxx_malloc = &default_cygwin_cxx_malloc;
-#endif
 	res = (uintptr_t) &__cygwin_user_data;
 	break;
 
@@ -318,6 +315,19 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	  res = p ? p->dwProcessId : 0;
 	}
 	break;
+
+      case CW_WINPID_TO_CYGWIN_PID:
+	{
+	  DWORD winpid = va_arg (arg, DWORD);
+	  pid_t pid = cygwin_pid (winpid);
+	  res = pid ?: winpid + MAX_PID;
+	}
+	break;
+
+      case CW_MAX_CYGWIN_PID:
+	res = MAX_PID;
+	break;
+
       case CW_EXTRACT_DOMAIN_AND_USER:
 	{
 	  WCHAR nt_domain[MAX_DOMAIN_NAME_LEN + 1];
@@ -432,13 +442,10 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	res = 0;
 	break;
       case CW_CYGTLS_PADSIZE:
-	res = CYGTLS_PADSIZE;
+	res = __CYGTLS_PADSIZE__;
 	break;
       case CW_SET_DOS_FILE_WARNING:
-	{
-	  dos_file_warning = va_arg (arg, int);
-	  res = 0;
-	}
+	res = 0;
 	break;
       case CW_SET_PRIV_KEY:
 	{
@@ -531,7 +538,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_ALLOC_DRIVE_MAP:
-      	{
+	{
 	  dos_drive_mappings *ddm = new dos_drive_mappings ();
 	  res = (uintptr_t) ddm;
 	}
@@ -597,7 +604,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_GETNSSSEP:
-	res = (uintptr_t) cygheap->pg.nss_separator ();
+	res = (uintptr_t) NSS_SEPARATOR_STRING;
 	break;
 
       case CW_GETNSS_PWD_SRC:
@@ -642,7 +649,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 					 "sshd",
 					 username_buffer,
 					 sizeof username_buffer);
-	     
+
 	     If this call succeeds, sshd expects the correct Cygwin
 	     username of the unprivileged sshd account in username_buffer.
 

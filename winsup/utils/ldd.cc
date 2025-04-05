@@ -37,9 +37,10 @@
 #include <unistd.h>
 #include <libgen.h>
 
-#define _WIN32_WINNT 0x0a00
 #include <windows.h>
+#include <winternl.h>
 #include <imagehlp.h>
+#define PSAPI_VERSION 1
 #include <psapi.h>
 
 struct option longopts[] =
@@ -67,7 +68,7 @@ error (const char *fmt, ...)
   exit (1);
 }
 
-static void
+static void __attribute__ ((__noreturn__))
 usage ()
 {
   printf ("Usage: %s [OPTION]... FILE...\n\
@@ -83,6 +84,7 @@ Print shared library dependencies\n\
   -v, --verbose           print all information\n\
                           (currently unimplemented)\n",
 	   program_invocation_short_name);
+  exit (0);
 }
 
 static void
@@ -215,6 +217,7 @@ start_process (const wchar_t *fn, bool& isdll)
 struct dlls
   {
     LPVOID lpBaseOfDll;
+    HANDLE hFile;
     struct dlls *next;
   };
 
@@ -256,7 +259,17 @@ print_dlls (dlls *dll, const wchar_t *dllfn, const wchar_t *process_fn)
       char *fn;
       wchar_t *fullpath = get_module_filename (hProcess, (HMODULE) dll->lpBaseOfDll);
       if (!fullpath)
-	fn = strdup ("???");
+	{
+	  // if no path found yet, try getting it from an open handle to the DLL
+	  wchar_t dllname[PATH_MAX];
+	  if (GetFinalPathNameByHandleW (dll->hFile, dllname, PATH_MAX, 0))
+	    {
+	      fn = tocyg (dllname);
+	      saw_file (basename (fn));
+	    }
+	  else
+	    fn = strdup ("???");
+	}
       else if (dllfn && wcscmp (fullpath, dllfn) == 0)
 	{
 	  free (fullpath);
@@ -340,6 +353,7 @@ report (const char *in_fn, bool multiple)
 	case LOAD_DLL_DEBUG_EVENT:
 	  dll_last->next = (dlls *) malloc (sizeof (dlls));
 	  dll_last->next->lpBaseOfDll = ev.u.LoadDll.lpBaseOfDll;
+	  dll_last->next->hFile = ev.u.LoadDll.hFile;
 	  dll_last->next->next = NULL;
 	  dll_last = dll_last->next;
 	  break;
@@ -366,6 +380,8 @@ report (const char *in_fn, bool multiple)
 	  }
 	  break;
 	case EXIT_PROCESS_DEBUG_EVENT:
+	  if (ev.u.ExitProcess.dwExitCode != 0)
+	    process_fn = fn_win;
 print_and_exit:
 	  print_dlls (&dll_list, isdll ? fn_win : NULL, process_fn);
 	  exitnow = true;
@@ -404,7 +420,6 @@ main (int argc, char **argv)
 	exit (1);
       case 'h':
 	usage ();
-	exit (0);
       case 'V':
 	print_version ();
 	return 0;

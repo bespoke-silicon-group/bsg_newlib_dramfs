@@ -21,8 +21,6 @@ details. */
 #include <wctype.h>
 #include <errno.h>
 
-#define _WIN32_WINNT 0x0a00
-#define WINVER 0x0a00
 #define NOCOMATTRIBUTE
 #include <windows.h>
 #include <userenv.h>
@@ -31,7 +29,6 @@ details. */
 #include <ntdll.h>
 
 #include "wide_path.h"
-#include "loadlib.h"
 
 static char *prog_name;
 static char *file_arg, *output_arg;
@@ -75,7 +72,7 @@ static struct option long_options[] = {
 
 static char options[] = "ac:df:hilmMopst:uUVwAC:DHOPSWF:";
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE * stream, int status)
 {
   if (!ignore_flag || !status)
@@ -538,7 +535,6 @@ do_sysfolders (char option)
 {
   WCHAR wbuf[MAX_PATH];
   char buf[PATH_MAX];
-  BOOL iswow64 = FALSE;
 
   wbuf[0] = L'\0';
   switch (option)
@@ -581,18 +577,6 @@ do_sysfolders (char option)
 
     case 'S':
       GetSystemDirectoryW (wbuf, MAX_PATH);
-      if (!windows_flag
-	  && IsWow64Process (GetCurrentProcess (), &iswow64) && iswow64)
-	{
-	  /* When calling NtQueryInformationFile(FileNameInformation) on WOW64,
-	     the returned path will point to SysWOW64.  This breaks path
-	     redirection to the network related files under device/etc.  This
-	     here is a bad hack to make sure that the conversion will convert
-	     the case *and* stick to System32. */
-	  PWCHAR last_bs = wcsrchr (wbuf, L'\\');
-	  if (last_bs)
-	    wcpcpy (last_bs + 1, L"Sysnative");
-	}
       break;
 
     case 'W':
@@ -970,7 +954,6 @@ do_options (int argc, char **argv, int from_file)
 
 	case 'h':
 	  usage (stdout, 0);
-	  break;
 
 	case 'V':
 	  print_version ();

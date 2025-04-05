@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -62,7 +62,7 @@
  pow (+/-inf, y) is +/-inf with no exception for finite y > 0 an odd integer
  pow (+/-inf, y) is +inf with no exception for finite y > 0 and not an odd integer
  pow (x, y) signals the invalid operation exception for finite x < 0 and finite non-integer y.
- 
+
  For x /= 0: lim y->oo (1/x)^y results as: for |x| < 1 that sgn(x)*0 and for |x| > 0 that sgn(x)*Infinity
 
 */
@@ -79,10 +79,10 @@ static __FLT_TYPE
 internal_modf (__FLT_TYPE value, __FLT_TYPE *iptr)
 {
   __FLT_TYPE int_part = (__FLT_TYPE) 0.0;
-  /* truncate */ 
+  /* truncate */
   /* truncate */
 #ifdef __x86_64__
-  asm ("pushq %%rax\n\tsubq $8, %%rsp\n"
+  asm volatile ("pushq %%rax\n\tsubq $8, %%rsp\n"
     "fnstcw 4(%%rsp)\n"
     "movzwl 4(%%rsp), %%eax\n"
     "orb $12, %%ah\n"
@@ -92,7 +92,7 @@ internal_modf (__FLT_TYPE value, __FLT_TYPE *iptr)
     "fldcw 4(%%rsp)\n"
     "addq $8, %%rsp\npopq %%rax" : "=t" (int_part) : "0" (value)); /* round */
 #else
-  asm ("push %%eax\n\tsubl $8, %%esp\n"
+  asm volatile ("push %%eax\n\tsubl $8, %%esp\n"
     "fnstcw 4(%%esp)\n"
     "movzwl 4(%%esp), %%eax\n"
     "orb $12, %%ah\n"
@@ -121,9 +121,13 @@ __FLT_ABI(pow) (__FLT_TYPE x, __FLT_TYPE y)
     return __FLT_CST(1.0);
   else if (x_class == FP_NAN || y_class == FP_NAN)
     {
-      rslt = (signbit(x) ? -__FLT_NAN : __FLT_NAN);
-      __FLT_RPT_DOMAIN ("pow", x, y, rslt);
-      return rslt;
+      if (x_class == FP_NAN) {
+        errno = EDOM;
+        return x;
+      } else {
+        errno = EDOM;
+        return y;
+      }
     }
   else if (x_class == FP_ZERO)
     {
@@ -133,7 +137,7 @@ __FLT_ABI(pow) (__FLT_TYPE x, __FLT_TYPE y)
       if (signbit(x) && internal_modf (y, &d) != 0.0)
 	{
 	  return signbit (y) ? (1.0 / -x) : __FLT_CST (0.0);
-	  /*__FLT_RPT_DOMAIN ("pow", x, y, -__FLT_NAN);
+	  /*errno = EDOM;
 	  return -__FLT_NAN; */
 	}
       odd_y = (internal_modf (__FLT_ABI (ldexp) (y, -1), &d) != 0.0) ? 1 : 0;
@@ -167,7 +171,7 @@ __FLT_ABI(pow) (__FLT_TYPE x, __FLT_TYPE y)
       if (signbit(x) && internal_modf (y, &d) != 0.0)
 	{
 	  return signbit(y) ? 1.0 / -x : -x;
-	  /*__FLT_RPT_DOMAIN ("pow", x, y, -__FLT_NAN);
+	  /*errno = EDOM;
 	  return -__FLT_NAN;*/
 	}
       odd_y = (internal_modf (__FLT_ABI (ldexp) (y, -1), &d) != 0.0) ? 1 : 0;
@@ -195,12 +199,12 @@ __FLT_ABI(pow) (__FLT_TYPE x, __FLT_TYPE y)
     {
       if (signbit (x))
 	{
-	  __FLT_RPT_DOMAIN ("pow", x, y, -__FLT_NAN);
+	  errno = EDOM;
 	  return -__FLT_NAN;
 	}
       if (y == __FLT_CST(0.5))
 	{
-	  asm ("fsqrt" : "=t" (rslt) : "0" (x));
+	  asm volatile ("fsqrt" : "=t" (rslt) : "0" (x));
 	  return rslt;
 	}
     }

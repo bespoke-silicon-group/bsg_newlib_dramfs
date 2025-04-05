@@ -110,7 +110,7 @@ struct usc_errno_t TEST_VALID_ENO[USC_MAX_ERRNO];
    * Globals for returning the return code and errno from the system call
    * test macros.
    ***********************************************************************/
-int TEST_RETURN;
+long TEST_RETURN;
 int TEST_ERRNO;
 
   /***********************************************************************
@@ -583,7 +583,7 @@ STD_opts_help()
 
     for(i = 0; std_options[i].optstr; ++i) {
 	if (std_options[i].help)
-	    printf(std_options[i].help);
+	    fputs(std_options[i].help, stdout);
     }
 }
 

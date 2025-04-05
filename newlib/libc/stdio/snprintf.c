@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -37,10 +37,11 @@ _snprintf_r (struct _reent *ptr,
 
   if (size > INT_MAX)
     {
-      ptr->_errno = EOVERFLOW;
+      _REENT_ERRNO(ptr) = EOVERFLOW;
       return EOF;
     }
   f._flags = __SWR | __SSTR;
+  f._flags2 = 0;
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = (size > 0 ? size - 1 : 0);
   f._file = -1;  /* No file. */
@@ -48,7 +49,7 @@ _snprintf_r (struct _reent *ptr,
   ret = _svfprintf_r (ptr, &f, fmt, ap);
   va_end (ap);
   if (ret < EOF)
-    ptr->_errno = EOVERFLOW;
+    _REENT_ERRNO(ptr) = EOVERFLOW;
   if (size > 0)
     *f._p = 0;
   return (ret);
@@ -74,10 +75,11 @@ snprintf (char *__restrict str,
 
   if (size > INT_MAX)
     {
-      ptr->_errno = EOVERFLOW;
+      _REENT_ERRNO(ptr) = EOVERFLOW;
       return EOF;
     }
   f._flags = __SWR | __SSTR;
+  f._flags2 = 0;
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = (size > 0 ? size - 1 : 0);
   f._file = -1;  /* No file. */
@@ -85,7 +87,7 @@ snprintf (char *__restrict str,
   ret = _svfprintf_r (ptr, &f, fmt, ap);
   va_end (ap);
   if (ret < EOF)
-    ptr->_errno = EOVERFLOW;
+    _REENT_ERRNO(ptr) = EOVERFLOW;
   if (size > 0)
     *f._p = 0;
   return (ret);

@@ -21,7 +21,7 @@
  *
  * The integral is
  *
- *                           x 
+ *                           x
  *                            -
  *                 2         | |          2
  *   erf(x)  =  --------     |    exp( - t  ) dt.
@@ -64,7 +64,7 @@
  *
  *  1 - erf(x) =
  *
- *                           inf. 
+ *                           inf.
  *                             -
  *                  2         | |          2
  *   erfc(x)  =  --------     |    exp( - t  ) dt
@@ -242,6 +242,9 @@ long double erfcl(long double a)
 
 	if (isinf (a))
 		return (signbit(a) ? 2.0 : 0.0);
+
+	if (isnan (a))
+		return (a);
 
 	x = fabsl (a);
 

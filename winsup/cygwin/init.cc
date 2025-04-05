@@ -19,19 +19,9 @@ unsigned threadfunc_ix[8];
 static bool dll_finished_loading;
 #define OLDFUNC_OFFSET -1
 
-static void WINAPI
+static void
 threadfunc_fe (VOID *arg)
 {
-#ifdef __i386__
-#if __GNUC_PREREQ(6,0)
-#pragma GCC diagnostic ignored "-Wframe-address"
-#endif
-  (void)__builtin_return_address(1);
-#if __GNUC_PREREQ(6,0)
-#pragma GCC diagnostic pop
-#endif
-  asm volatile ("andl $-16,%%esp" ::: "%esp");
-#endif
   _cygtls::call ((DWORD (*)  (void *, void *)) TlsGetValue (_my_oldfunc), arg);
 }
 
@@ -80,7 +70,7 @@ void dll_crt0_0 ();
    need the alloca'd space in the DLL_PROCESS_ATTACH case below... */
 void *alloca_dummy;
 
-extern "C" BOOL WINAPI
+extern "C" BOOL
 dll_entry (HANDLE h, DWORD reason, void *static_load)
 {
   BOOL test_stack_marker;
@@ -99,7 +89,8 @@ dll_entry (HANDLE h, DWORD reason, void *static_load)
 	 initialized to NULL, so subsequent calls to locale-specific functions
 	 will always fall back to __global_locale, rather then crash due to
 	 _REENT->_locale having an arbitrary value. */
-      alloca_dummy = alloca (CYGTLS_PADSIZE);
+      alloca_dummy = alloca (__CYGTLS_PADSIZE__);
+      ZeroMemory (alloca_dummy, __CYGTLS_PADSIZE__);
       memcpy (_REENT, _GLOBAL_REENT, sizeof (struct _reent));
 
       dll_crt0_0 ();

@@ -114,7 +114,7 @@ struct OLD_msghdr
   struct iovec *	msg_iov;	/* Data blocks			*/
   int			msg_iovlen;	/* Number of blocks		*/
   void *		msg_accrights;	/* Per protocol magic		*/
-  					/* (eg BSD descriptor passing)	*/
+					/* (eg BSD descriptor passing)	*/
   int			msg_accrightslen; /* Length of rights list	*/
 };
 #endif
@@ -207,6 +207,8 @@ struct OLD_msghdr
 /* AF_UNIX specific */
 #define MSG_CMSG_CLOEXEC 0x1000		/* Set O_CLOEXEC on fd's passed via
 					   SCM_RIGHTS */
+/* MSG_EOR is not supported.  We use the MSG_PARTIAL flag here */
+#define MSG_EOR		0x8000		/* Terminates a record */
 
 /* Setsockoptions(2) level. Thanks to BSD these must match IPPROTO_xxx */
 #define SOL_IP		0
@@ -223,6 +225,8 @@ struct OLD_msghdr
 #define	IPTOS_LOWDELAY		0x10
 #define	IPTOS_THROUGHPUT	0x08
 #define	IPTOS_RELIABILITY	0x04
+#define	IPTOS_LOWCOST		0x02
+#define	IPTOS_MINCOST		IPTOS_LOWCOST
 #endif
 
 /* These need to appear somewhere around here */
@@ -246,10 +250,22 @@ struct OLD_msghdr
 #define IP_BLOCK_SOURCE                 17
 #define IP_UNBLOCK_SOURCE               18
 #define IP_PKTINFO                      19
+#define IP_RECVTTL                      21
 #define IP_UNICAST_IF                   31
+#define IP_RECVTOS                      40
+#define IP_MTU_DISCOVER                 71
+#define IP_MTU                          73
+#define IP_RECVERR                      75
+
+/* IP_MTU_DISCOVER optvals */
+#define IP_PMTUDISC_WANT                0	/* Use per route hints  */
+#define IP_PMTUDISC_DO                  1       /* Always DF            */
+#define IP_PMTUDISC_DONT                2       /* Never send DF frames */
+#define IP_PMTUDISC_PROBE               3       /* Ignore dst pmtu      */
 
 /* IPv6 options for use with getsockopt/setsockopt */
 #define IPV6_HOPOPTS                     1
+#define IPV6_HDRINCL                     2
 #define IPV6_UNICAST_HOPS                4
 #define IPV6_MULTICAST_IF                9
 #define IPV6_MULTICAST_HOPS             10
@@ -268,6 +284,15 @@ struct OLD_msghdr
 #define IPV6_RECVRTHDR                  38
 #define IPV6_TCLASS                     39
 #define IPV6_RECVTCLASS                 40
+#define IPV6_MTU_DISCOVER               71
+#define IPV6_MTU                        72
+#define IPV6_RECVERR                    75
+
+/* IPV6_MTU_DISCOVER optvals */
+#define IPV6_PMTUDISC_WANT              0	/* Use per route hints  */
+#define IPV6_PMTUDISC_DO                1       /* Always DF            */
+#define IPV6_PMTUDISC_DONT              2       /* Never send DF frames */
+#define IPV6_PMTUDISC_PROBE             3       /* Ignore dst pmtu      */
 
 /* IP agnostic options for use with getsockopt/setsockopt */
 #define MCAST_JOIN_GROUP                41
@@ -297,12 +322,6 @@ struct OLD_msghdr
 
 /* IPX options */
 #define IPX_TYPE	1
-
-/* TCP options - this way around because someone left a set in the c library includes */
-#ifndef TCP_NODELAY
-#define TCP_NODELAY     0x0001
-#define TCP_MAXSEG	2
-#endif
 
 /* SUS symbolic values for the second parm to shutdown(2) */
 #define SHUT_RD   0		/* == Win32 SD_RECEIVE */

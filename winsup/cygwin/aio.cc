@@ -37,7 +37,7 @@ static NO_COPY volatile LONG    aioinitialized = 0;
  * on completion.  Event arrival causes AIO context for the fd to be updated.
  *
  * A queued AIO is performed in a similar manner, but by an AIO worker thread
- * rather than the calling app's thread.  The queued flavor can also operate 
+ * rather than the calling app's thread.  The queued flavor can also operate
  * on sockets, pipes, non-binary files, mandatory-locked files, and files
  * that don't support pread|pwrite.  Generally all these cases are handled as
  * synchronous read|write operations, but still don't delay the app because
@@ -200,7 +200,7 @@ aionotify (struct aiocb *aio)
     }
 }
 
-static DWORD WINAPI __attribute__ ((noreturn))
+static DWORD __attribute__ ((noreturn))
 aiowaiter (void *unused)
 { /* One instance, called on its own cygthread; runs until program exits */
   struct aiocb *aio;
@@ -327,7 +327,7 @@ asyncwrite (struct aiocb *aio)
 }
 
 /* Have to forward ref because of chicken v. egg situation */
-static DWORD WINAPI __attribute__ ((noreturn)) aioworker (void *);
+static DWORD __attribute__ ((noreturn)) aioworker (void *);
 
 static void
 aioinit (void)
@@ -400,7 +400,7 @@ aioqueue (struct aiocb *aio)
   return 0;
 }
 
-static DWORD WINAPI __attribute__ ((noreturn))
+static DWORD __attribute__ ((noreturn))
 aioworker (void *unused)
 { /* Multiple instances; called on own cygthreads; runs 'til program exits */
   struct aiocb *aio;
@@ -698,7 +698,7 @@ aio_read (struct aiocb *aio)
         if (slot >= 0)
           debug_printf ("slot %d released", slot);
       }
-      /* fall through */
+      fallthrough;
 
     case ENOBUFS:
       aio->aio_errno = EINPROGRESS;
@@ -766,7 +766,7 @@ aiosuspend (const struct aiocb *const aiolist[],
   if (timeout)
     {
       to = *timeout;
-      if (to.tv_sec < 0 || to.tv_nsec < 0 || to.tv_nsec > NSPERSEC)
+      if (!valid_timespec (to))
         {
           set_errno (EINVAL);
           return -1;
@@ -888,7 +888,7 @@ aio_write (struct aiocb *aio)
         if (slot >= 0)
           debug_printf ("slot %d released", slot);
       }
-      /* fall through */
+      fallthrough;
 
     case ENOBUFS:
       aio->aio_errno = EINPROGRESS;
@@ -905,7 +905,7 @@ aio_write (struct aiocb *aio)
 }
 
 int
-lio_listio (int mode, struct aiocb *__restrict const aiolist[__restrict],
+lio_listio (int mode, struct aiocb *__restrict const aiolist[__restrict_arr],
             int nent, struct sigevent *__restrict sig)
 {
   struct aiocb *aio;

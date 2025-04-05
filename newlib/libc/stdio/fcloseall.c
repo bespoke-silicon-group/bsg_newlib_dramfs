@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -59,7 +59,8 @@ Required OS subroutines: <<close>>, <<fstat>>, <<isatty>>, <<lseek>>,
 int
 _fcloseall_r (struct _reent *ptr)
 {
-  return _fwalk_reent (ptr, _fclose_r);
+  /* There are no thread-specific FILE objects */
+  return 0;
 }
 
 #ifndef _REENT_ONLY
@@ -67,7 +68,7 @@ _fcloseall_r (struct _reent *ptr)
 int
 fcloseall (void)
 {
-  return _fcloseall_r (_GLOBAL_REENT);
+  return _fwalk_sglue (_GLOBAL_REENT, _fclose_r, &__sglue);
 }
 
 #endif

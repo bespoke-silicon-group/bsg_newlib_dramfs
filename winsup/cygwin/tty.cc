@@ -58,12 +58,12 @@ revoke (char *ttyname)
 extern "C" int
 ttyslot (void)
 {
-  if (myself->ctty <= 0 || iscons_dev (myself->ctty))
+  if (!CTTY_IS_VALID (myself->ctty) || iscons_dev (myself->ctty))
     return -1;
   return device::minor (myself->ctty);
 }
 
-void __stdcall
+void
 tty_list::init_session ()
 {
   char mutex_name[MAX_PATH];
@@ -75,14 +75,14 @@ tty_list::init_session ()
   ProtectHandle (mutex);
 }
 
-void __stdcall
+void
 tty::init_session ()
 {
   if (!myself->cygstarted && NOTSTATE (myself, PID_CYGPARENT))
     cygheap->fdtab.get_debugger_info ();
 }
 
-int __reg2
+int
 tty_list::attach (int n)
 {
   int res;
@@ -235,6 +235,27 @@ tty::init ()
   master_pid = 0;
   is_console = false;
   column = 0;
+  pcon_activated = false;
+  switch_to_nat_pipe = false;
+  nat_pipe_owner_pid = 0;
+  term_code_page = 0;
+  fwd_last_time = 0;
+  fwd_not_empty = false;
+  pcon_start = false;
+  pcon_start_pid = 0;
+  pcon_cap_checked = false;
+  has_csi6n = false;
+  need_invisible_console = false;
+  invisible_console_pid = 0;
+  previous_code_page = 0;
+  previous_output_code_page = 0;
+  master_is_running_as_service = false;
+  req_xfer_input = false;
+  pty_input_state = to_cyg;
+  last_sig = 0;
+  mask_flusho = false;
+  discard_input = false;
+  stop_fwd_thread = false;
 }
 
 HANDLE
@@ -278,4 +299,55 @@ tty_min::ttyname ()
   device d;
   d.parse (ntty);
   return d.name ();
+}
+
+extern DWORD mutex_timeout; /* defined in fhandler_termios.cc */
+
+void
+tty_min::setpgid (int pid)
+{
+  if (::cygheap->ctty)
+    ::cygheap->ctty->setpgid_aux (pid);
+
+  pgid = pid;
+}
+
+void
+tty::wait_fwd ()
+{
+  /* The forwarding in pseudo console sometimes stops for
+     16-32 msec even if it already has data to transfer.
+     If the time without transfer exceeds 32 msec, the
+     forwarding is supposed to be finished. fwd_last_time
+     is reset to GetTickCount64() in pty master forwarding
+     thread when the last data is transfered. */
+  const ULONGLONG sleep_in_nat_pipe = 16;
+  const ULONGLONG time_to_wait = sleep_in_nat_pipe * 2 + 1/* margine */;
+  ULONGLONG elapsed;
+  while (fwd_not_empty
+	 || (elapsed = GetTickCount64 () - fwd_last_time) < time_to_wait)
+    {
+      int tw = fwd_not_empty ? 10 : (time_to_wait - elapsed);
+      cygwait (tw);
+    }
+}
+
+bool
+tty::nat_fg (pid_t pgid)
+{
+  /* Check if the terminal pgid matches with the pgid of the
+     non-cygwin process. */
+  winpids pids ((DWORD) 0);
+  for (unsigned i = 0; i < pids.npids; i++)
+    {
+      _pinfo *p = pids[i];
+      if (p->ctty == ntty && p->pgid == pgid
+	  && ((p->process_state & PID_NOTCYGWIN)
+	      /* Below is true for GDB with non-cygwin inferior */
+	      || p->exec_dwProcessId == p->dwProcessId))
+	return true;
+    }
+  if (pgid > MAX_PID)
+    return true;
+  return false;
 }

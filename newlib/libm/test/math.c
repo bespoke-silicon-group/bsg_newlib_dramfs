@@ -24,30 +24,10 @@
 #include <errno.h>
 #include <stdio.h>
 
-int inacc;
-
 int merror;
 double mretval = 64;
 int traperror = 1;
 char *mname;
-
-int verbose;
-
-/* To test exceptions - we trap them all and return a known value */
-int
-matherr (struct exception *e)
-{
-  if (traperror) 
-  {
-    merror = e->type + 12;
-    mname = e->name;
-    e->retval = mretval;
-    errno = merror + 24;
-    return 1;
-  }
-  return 0;
-}
-
 
 void translate_to (FILE *file,
 	    double r)
@@ -90,6 +70,7 @@ ffcheck (double is,
 #if 0
   if (p->qs[0].merror != merror) 
   {
+    /* Beware, matherr doesn't exist anymore.  */
     printf("testing %s_vec.c:%d, matherr wrong: %d %d\n",
 	   name, p->line, merror, p->qs[0].merror);
   }
@@ -116,7 +97,6 @@ thedouble (long msw,
 }
 
 int calc;
-int reduce;
 
 
 frontline (FILE *f,
@@ -186,7 +166,6 @@ finish (FILE *f,
     frontline(f, mag, p, result, merror, errno, args , name);
   }
 } 
-int redo;  
 
 run_vector_1 (int vector,
        one_line_type *p,

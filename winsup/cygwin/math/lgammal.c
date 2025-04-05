@@ -205,7 +205,7 @@ static const long double LS2PI  =  0.91893853320467274178L;
 #endif /* defined(__arm__) || defined(_ARM_) */
 
 /* Logarithm of gamma function */
-/* Reentrant version */ 
+/* Reentrant version */
 long double __lgammal_r(long double x, int* sgngaml);
 
 long double __lgammal_r(long double x, int* sgngaml)
@@ -216,7 +216,7 @@ long double __lgammal_r(long double x, int* sgngaml)
 	*sgngaml = 1;
 #ifdef NANS
 	if (isnanl(x))
-		return(NANL);
+		return x;
 #endif
 #ifdef INFINITIES
 	if (!isfinitel(x))

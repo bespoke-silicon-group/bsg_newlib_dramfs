@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -174,7 +174,7 @@ nbf:
    * We're committed to buffering from here, so make sure we've
    * registered to flush buffers on exit.
    */
-  if (!reent->__sdidinit)
+  if (!_REENT_CLEANUP(reent))
     __sinit(reent);
 
 #ifdef _FSEEK_OPTIMIZATION

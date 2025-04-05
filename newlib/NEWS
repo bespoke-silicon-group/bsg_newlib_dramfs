@@ -1,3 +1,88 @@
+*** Major changes in newlib version 4.4.0:
+
+- long double support for i386, aarch64, and x86_64 added from FreeBSD
+- RISC-V Zfinx/Zdinx extension support
+- wildcard support added to allow arbitrary include dirs to be specified for a platform
+- Xtensa port added
+- printf family helper functions split out into separate files to save space when linking
+- wide-oriented I/O fixes including proper split of byte and wide-oriented stdio functions
+- support added for RISC-V long double math
+- fixes for c99/gcc-14 warnings treated as errors in multiple platforms
+
+*** Major changes in newlib version 4.3.0:
+
+
+- remove i?86-pc-linux-gnu support
+- remove decstation & sunos support
+- remove phoenix OS support
+- remove unused members from struct _reent (see also --enable-newlib-reent-binary-compat)
+- build system internals heavily rewritten & updated
+- make arm jmp_buf size and alignment ABI-conformant
+- fixed bug in arm setjmp/longjmp to preserve floating-point register values
+- add --enable-newlib-reent-thread-local configuration option
+- add --enable-newlib-reent-binary-compat configuration option
+- add 64-bit powerpc setjmp/longjmp support
+- use global stdio streams for all configurations
+- use global atexit data for all configurations
+- vectorized math routines added for amdgcn platform
+- nvptx: remove newlib ELIX level 1 restriction
+
+*** Major changes in newlib version 4.2.0:
+
+- remove use of --cygnus option for automake
+- rename configure.in files to configure.ac
+- enable automake silent rules
+- import gdtoa from OpenBSD
+- update to Unicode 14.0
+- ignore _FORTIFY_SOURCE when building newlib
+- fixes to ldtoa
+- add clock support to nvptx port
+- various pthread POSIX APIs added
+- added implementatio for sig2str/str2sig
+- strtod/strtof to set errno to ERANGE consistently for underflow
+- fixed rounding issue with sqrt/sqrtf
+- fixed heap fragmentation issue with nano-malloc
+- FTW port for newlib
+- additions to sys/tree.h
+
+*** Major changes in newlib version 4.1.0:
+
+- fixes for regressions to pow/powf and tgamma functions
+- RISC-V semihosting support
+- RISC-V and arm patches
+
+*** Major changes in newlib version 4.0.0:
+
+- additional out-of-bounds checking for malloc/nano-malloc family
+- various fixes to makedocbook for python 3.8
+- multiple standard/accuracy fixes to libm math routines
+- C-SKY port
+- support for Armv8-R aarch64 added
+- move of __tzrules_struct from time.h to internal header
+- math additions/improvements for RISC-V and arm
+- all arm code converted to use unified syntax for Thumb1
+- fenv support added for multiple platforms
+- hard float support for PowerPC taken from FreeBSD
+- advertising clause removed from BSD licenses
+- various other fixes
+
+*** Major changes in newlib version 3.2.0:
+
+- memmem performance improvement
+- nanf() and HUGE_VALF now used in libm float routines to reduce size
+- new reduced "tiny" code size printf and puts support
+- errno setting enhanced in libm routines
+- new --enable-newlib-reent-check-verify configure option to verify reent memory
+- <fenv.h> support added
+- <sys/time.h> and <sys/_timespec.h> synced with FreeBSD
+- timeval macros moved to <sys/time.h>
+- newlib wide char conversion functions updated to Unicode 11.0
+- new msp430-elfbare target support
+- AMD GCN port
+- PRU port
+- nbdm port
+- various standard improvements
+
 *** Major changes in newlib version 3.1.0:
 
 - global stdio streams support added for reent small

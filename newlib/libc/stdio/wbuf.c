@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -56,7 +56,8 @@ __swbuf_r (struct _reent *ptr,
     return EOF;
   c = (unsigned char) c;
 
-  ORIENT (fp, -1);
+  if (ORIENT (fp, -1) != -1)
+    return EOF;
 
   /*
    * If it is completely full, flush it out.  Then, in any case,

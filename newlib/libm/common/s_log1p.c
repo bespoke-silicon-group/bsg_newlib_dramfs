@@ -65,7 +65,7 @@ Interface Definition (Issue 2).
  *	Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
  *		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
  *	     	 = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate 
+ *      We use a special Remez algorithm on [0,0.1716] to generate 
  * 	a polynomial of degree 14 to approximate R The maximum error 
  *	of this polynomial approximation is bounded by 2**-58.45. In
  *	other words,
@@ -113,6 +113,7 @@ Interface Definition (Issue 2).
  */
 
 #include "fdlibm.h"
+#include "math_config.h"
 
 #ifndef _DOUBLE_IS_32BITS
 
@@ -154,8 +155,10 @@ static double zero = 0.0;
 	k = 1;
 	if (hx < 0x3FDA827A) {			/* x < 0.41422  */
 	    if(ax>=0x3ff00000) {		/* x <= -1.0 */
-		if(x==-1.0) return -two54/zero; /* log1p(-1)=+inf */
-		else return (x-x)/(x-x);	/* log1p(x<-1)=NaN */
+		if(x==-1.0)
+		    return __math_divzero (1);	/* log1p(-1)=-inf */
+		else
+		    return __math_invalid (x);	/* log1p(x<-1)=NaN */
 	    }
 	    if(ax<0x3e200000) {			/* |x| < 2**-29 */
 		if(two54+x>zero			/* raise inexact */

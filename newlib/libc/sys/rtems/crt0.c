@@ -13,6 +13,7 @@
 #include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <assert.h>
 #include <reent.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -194,13 +195,13 @@ RTEMS_STUB(void *, _malloc_r(struct _reent * r, size_t s), { return 0; })
 RTEMS_STUB(void, _free_r(struct _reent *r, void *p), { })
 
 /* stubs for functions required by libc/stdlib */
-RTEMS_STUB(void, __assert_func(const char *file, int line, const char *failedexpr), { })
+RTEMS_STUB(void, __assert_func(const char *file, int line, const char *func, const char *failedexpr), { while (1) ;})
 
 #if defined(__arm__)
 RTEMS_STUB(void, __aeabi_read_tp(void), { })
 #endif
 
-RTEMS_STUB(void *, __tls_get_addr(const void *ti), { })
+RTEMS_STUB(void *, __tls_get_addr(const void *ti), { return NULL; })
 
 /* The PowerPC expects certain symbols to be defined in the linker script. */
 
@@ -228,4 +229,8 @@ int __EH_FRAME_BEGIN__;
  *  hard coded into GCC instead of providing it through ldscripts
  */
 const char* __stack ;
+#endif
+
+#if defined(__m68k__)
+RTEMS_STUB(void, __m68k_read_tp(void), { })
 #endif

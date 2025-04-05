@@ -9,6 +9,10 @@
    http://www.opensource.org/licenses.
 */
 
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
+//memcpy defined in memcpy-asm.S
+#else
+
 #include <string.h>
 #include <stdint.h>
 #include "../../string/local.h"
@@ -47,9 +51,9 @@ small:
   const long *lb = (const long *)b;
   long *lend = (long *)((uintptr_t)end & ~msk);
 
-  if (unlikely (la < (lend - 8)))
+  if (unlikely (lend - la > 8))
     {
-      while (la < (lend - 8))
+      while (lend - la > 8)
 	{
 	  long b0 = *lb++;
 	  long b1 = *lb++;
@@ -81,3 +85,4 @@ small:
     goto small;
   return aa;
 }
+#endif

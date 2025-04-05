@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -77,6 +77,27 @@ __FLT_ABI(cacosh) (__FLT_TYPE __complex__ z)
   {
     __real__ ret = __FLT_CST(0.0);
     __imag__ ret = __FLT_ABI(copysign) (__FLT_PI_2, __imag__ z);
+    return ret;
+  }
+
+  /* cacosh(z) = log(z + sqrt(z*z - 1)) */
+
+  if (__FLT_ABI(fabs) (__real__ z) >= __FLT_CST(1.0)/__FLT_EPSILON
+      || __FLT_ABI(fabs) (__imag__ z) >= __FLT_CST(1.0)/__FLT_EPSILON)
+  {
+    /* For large z, z + sqrt(z*z - 1) is approximately 2*z.
+    Use that approximation to avoid overflow when squaring.
+    Additionally, use symmetries to perform the calculation in the positive
+    half plane. */
+    __real__ x = __real__ z;
+    __imag__ x = __FLT_ABI(fabs) (__imag__ z);
+    x = __FLT_ABI(clog) (x);
+    __real__ x += M_LN2;
+
+    /* adjust signs for input */
+    __real__ ret = __real__ x;
+    __imag__ ret = __FLT_ABI(copysign) (__imag__ x, __imag__ z);
+
     return ret;
   }
 

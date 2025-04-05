@@ -263,8 +263,13 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 #ifdef Honor_FLT_ROUNDS
 	int rounding;
 #endif
+#ifdef __HAVE_LOCALE_INFO__
 	const char *decimal_point = __get_numeric_locale(loc)->decimal_point;
-	int dec_len = strlen (decimal_point);
+	const int dec_len = strlen (decimal_point);
+#else
+	const char *decimal_point = ".";
+	const int dec_len = 1;
+#endif
 
 	delta = bs = bd = NULL;
 	sign = nz0 = nz = decpt = 0;
@@ -326,6 +331,11 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 					Bfree(ptr,bb);
 					}
 				ULtod(rv.i, bits, exp, i);
+#ifndef NO_ERRNO
+                                /* try to avoid the bug of testing an 8087 register value */
+                                if ((dword0(rv)&Exp_mask) == 0)
+                                    errno = ERANGE;
+#endif
 			  }}
 			goto ret;
 		  }
@@ -585,7 +595,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 			if (e1 > DBL_MAX_10_EXP) {
  ovfl:
 #ifndef NO_ERRNO
-				ptr->_errno = ERANGE;
+				_REENT_ERRNO(ptr) = ERANGE;
 #endif
 				/* Can't trust HUGE_VAL */
 #ifdef IEEE_Arith
@@ -692,7 +702,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
  undfl:
 					dval(rv) = 0.;
 #ifndef NO_ERRNO
-					ptr->_errno = ERANGE;
+					_REENT_ERRNO(ptr) = ERANGE;
 #endif
 					if (bd0)
 						goto retfree;
@@ -1238,8 +1248,8 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 		dval(rv) *= dval(rv0);
 #ifndef NO_ERRNO
 		/* try to avoid the bug of testing an 8087 register value */
-		if (dword0(rv) == 0 && dword1(rv) == 0)
-			ptr->_errno = ERANGE;
+		if ((dword0(rv) & Exp_mask) == 0)
+			_REENT_ERRNO(ptr) = ERANGE;
 #endif
 		}
 #endif /* Avoid_Underflow */
@@ -1293,9 +1303,31 @@ strtof_l (const char *__restrict s00, char **__restrict se, locale_t loc)
   float retval = (float) val;
 #ifndef NO_ERRNO
   if (isinf (retval) && !isinf (val))
-    _REENT->_errno = ERANGE;
+    _REENT_ERRNO(_REENT) = ERANGE;
 #endif
   return retval;
+}
+
+/*
+ * These two functions are not quite correct as they return true for
+ * zero, however they are 'good enough' for the test in strtof below
+ * as we only need to know whether the double test is false when
+ * the float test is true.
+ */
+static inline int
+isdenorm(double d)
+{
+    U u;
+    dval(u) = d;
+    return (dword0(u) & Exp_mask) == 0;
+}
+
+static inline int
+isdenormf(float f)
+{
+    union { float f; __uint32_t i; } u;
+    u.f = f;
+    return (u.i & 0x7f800000) == 0;
 }
 
 float
@@ -1307,8 +1339,8 @@ strtof (const char *__restrict s00,
     return signbit (val) ? -nanf ("") : nanf ("");
   float retval = (float) val;
 #ifndef NO_ERRNO
-  if (isinf (retval) && !isinf (val))
-    _REENT->_errno = ERANGE;
+  if ((isinf (retval) && !isinf (val)) || (isdenormf(retval) && !isdenorm(val)))
+    _REENT_ERRNO(_REENT) = ERANGE;
 #endif
   return retval;
 }

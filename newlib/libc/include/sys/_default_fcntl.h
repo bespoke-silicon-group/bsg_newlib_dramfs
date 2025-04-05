@@ -35,6 +35,7 @@ extern "C" {
 #if defined (__CYGWIN__)
 #define	_FTMPFILE	0x800000
 #define	_FNOATIME	0x1000000
+#define	_FPATH		0x2000000
 #endif
 
 #define	O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
@@ -80,6 +81,7 @@ extern "C" {
 #if __GNU_VISIBLE
 #define O_TMPFILE	_FTMPFILE
 #define O_NOATIME	_FNOATIME
+#define O_PATH		_FPATH
 #endif
 #endif
 
@@ -160,10 +162,14 @@ extern "C" {
 #define AT_FDCWD -2
 
 /* Flag values for faccessat2) et al. */
-#define AT_EACCESS              1
-#define AT_SYMLINK_NOFOLLOW     2
-#define AT_SYMLINK_FOLLOW       4
-#define AT_REMOVEDIR            8
+#define AT_EACCESS                 0x0001
+#define AT_SYMLINK_NOFOLLOW        0x0002
+#define AT_SYMLINK_FOLLOW          0x0004
+#define AT_REMOVEDIR               0x0008
+#if __GNU_VISIBLE
+#define AT_EMPTY_PATH              0x0010
+#define _AT_NULL_PATHNAME_ALLOWED  0x4000 /* Internal flag used by futimesat */
+#endif
 #endif
 
 #if __BSD_VISIBLE
@@ -216,12 +222,12 @@ extern int flock (int, int);
 #endif
 #if __GNU_VISIBLE
 #include <sys/time.h>
-extern int futimesat (int, const char *, const struct timeval *);
+extern int futimesat (int, const char *, const struct timeval [2]);
 #endif
 
 /* Provide _<systemcall> prototypes for functions provided by some versions
    of newlib.  */
-#ifdef _COMPILING_NEWLIB
+#ifdef _LIBC
 extern int _open (const char *, int, ...);
 extern int _fcntl (int, int, ...);
 #ifdef __LARGE64_FILES

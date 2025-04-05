@@ -10,12 +10,8 @@ details. */
    the Cygwin shared library".  This version is used to track important
    changes to the DLL and is mainly informative in nature. */
 
-#define CYGWIN_VERSION_DLL_MAJOR 2012
+#define CYGWIN_VERSION_DLL_MAJOR 3005
 #define CYGWIN_VERSION_DLL_MINOR 0
-
-/* Major numbers before CYGWIN_VERSION_DLL_EPOCH are incompatible. */
-
-#define CYGWIN_VERSION_DLL_EPOCH 19
 
 /* CYGWIN_VERSION_DLL_COMBINED gives us a single number representing the
    combined DLL major and minor numbers. */
@@ -34,47 +30,11 @@ details. */
 #define CYGWIN_VERSION_USER_API_VERSION_COMBINED \
   CYGWIN_VERSION_PER_PROCESS_API_VERSION_COMBINED (user_data)
 
-/* API versions <= this had a termios structure whose members were too small
-   to accomodate modern settings. */
-#define CYGWIN_VERSION_DLL_OLD_TERMIOS		5
-#define CYGWIN_VERSION_DLL_IS_OLD_TERMIOS \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= CYGWIN_VERSION_DLL_OLD_TERMIOS)
-
-#define CYGWIN_VERSION_DLL_MALLOC_ENV		28
-
-/* Old APIs had getc/putc macros that conflict with new CR/LF handling in the
-   stdio buffers */
-#define CYGWIN_VERSION_OLD_STDIO_CRLF_HANDLING \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 20)
-
-#define CYGWIN_VERSION_CHECK_FOR_S_IEXEC \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED >= 36)
-
-#define CYGWIN_VERSION_CHECK_FOR_OLD_O_NONBLOCK \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 28)
-
-#define CYGWIN_VERSION_CHECK_FOR_USING_BIG_TYPES \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED >= 79)
-
-#define CYGWIN_VERSION_CHECK_FOR_USING_ANCIENT_MSGHDR \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 138)
-
-#define CYGWIN_VERSION_CHECK_FOR_USING_WINSOCK1_VALUES \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 138)
-
-#define CYGWIN_VERSION_CHECK_FOR_OLD_IFREQ \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 161)
-
-#define CYGWIN_VERSION_CHECK_FOR_OLD_CTYPE \
-  (CYGWIN_VERSION_USER_API_VERSION_COMBINED <= 209)
-
-#define CYGWIN_VERSION_USE_PSEUDO_RELOC_IN_DLL(u) \
-  (CYGWIN_VERSION_PER_PROCESS_API_VERSION_COMBINED (u) >= 227)
+/* Please note that the first API_VERSION of the 64 bit build was 0.263.
+   For macros checking for older versions, bisect the git repo. */
 
 #define CYGWIN_VERSION_CHECK_FOR_EXTRA_TM_MEMBERS \
   (CYGWIN_VERSION_USER_API_VERSION_COMBINED >= 272)
-
-#define CYGWIN_VERSION_CYGWIN_CONV 181
 
 /* API_MAJOR 0.0: Initial version.  API_MINOR changes:
     1: Export cygwin32_ calls as cygwin_ as well.
@@ -258,8 +218,7 @@ details. */
   143: Export clock_getres, clock_setres
   144: Export timelocal, timegm.
   145: Add MAP_NORESERVE flag to mmap.
-  146: Change SI_USER definition.  FIXME: Need to develop compatibility
-       macro for this?
+  146: Change SI_USER definition.
   147: Eliminate problematic d_ino from dirent structure.  unsetenv now
        returns int, as per linux.
   148: Add open(2) flags O_SYNC, O_RSYNC, O_DSYNC and O_DIRECT.
@@ -501,12 +460,36 @@ details. */
   329: Export sched_getcpu.
   330: Add CLOCK_REALTIME_COARSE, CLOCK_MONOTONIC_RAW, CLOCK_MONOTONIC_COARSE,
        CLOCK_BOOTTIME.
+  331: Add timer_getoverrun, DELAYTIMER_MAX.
+  332: Add signalfd.
+  333: Add timerfd_create, timerfd_gettime, timerfd_settime.
+  334: Remove matherr.
+  335: Change size of utsname, change uname output.
+  336: New Cygwin PID algorithm (yeah, not really an API change)
+  337: MOUNT_BINARY -> MOUNT_TEXT
+  338: Export secure_getenv.
+  339: Export sched_getaffinity, sched_setaffinity, pthread_getaffinity_np,
+       pthread_setaffinity_np, __sched_getaffinity_sys.
+  340: Export dbm_clearerr, dbm_close, dbm_delete, dbm_dirfno, dbm_error,
+       dbm_fetch, dbm_firstkey, dbm_nextkey, dbm_open, dbm_store.
+  341: Export pthread_cond_clockwait, pthread_mutex_clocklock,
+       pthread_rwlock_clockrdlock, pthread_rwlock_clockwrlock,
+       sem_clockwait, sig2str, str2sig.
+  342: Remove cleanup_glue.
+  343: Change FD_SETSIZE and NOFILE.
+  344: Remove _alloca.
+  345: Reinstantiate _alloca.
+  346: (Belatedly) add posix_spawn_file_actions_addchdir_np,
+       posix_spawn_file_actions_addfchdir_np.
+  347: Add c16rtomb, c32rtomb, mbrtoc16, mbrtoc32.
+  348: Add c8rtomb, mbrtoc.
+  349: Add fallocate.
 
   Note that we forgot to bump the api for ualarm, strtoll, strtoull,
   sigaltstack, sethostname. */
 
 #define CYGWIN_VERSION_API_MAJOR 0
-#define CYGWIN_VERSION_API_MINOR 330
+#define CYGWIN_VERSION_API_MINOR 349
 
 /* There is also a compatibity version number associated with the shared memory
    regions.  It is incremented when incompatible changes are made to the shared

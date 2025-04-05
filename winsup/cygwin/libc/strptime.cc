@@ -524,7 +524,7 @@ literal:
 
 		case 'k':	/* The hour (24-hour clock representation). */
 			LEGAL_ALT(0);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 'H':
 			LEGAL_ALT(ALT_O);
 			bp = conv_num(bp, &tm->tm_hour, 0, 23, ALT_DIGITS);
@@ -532,7 +532,7 @@ literal:
 
 		case 'l':	/* The hour (12-hour clock representation). */
 			LEGAL_ALT(0);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 'I':
 			LEGAL_ALT(ALT_O);
 			bp = conv_num(bp, &tm->tm_hour, 1, 12, ALT_DIGITS);
@@ -568,6 +568,14 @@ literal:
 				return NULL;
 			tm->tm_hour += i * 12;
 			LEGAL_ALT(0);
+			continue;
+
+		case 'q':	/* The quarter year. GNU extension. */
+			LEGAL_ALT(0);
+			i = 1;
+			bp = conv_num(bp, &i, 1, 4, ALT_DIGITS);
+			tm->tm_mon = (i - 1)*3;
+			ymd |= SET_MON;
 			continue;
 
 		case 'S':	/* The seconds. */
@@ -655,7 +663,7 @@ literal:
 			got_eoff = 0;
 			continue;
 
-		case 'y':	/* The year within 100 years of the epoch. */
+		case 'y':	/* The year within 100 years of the century or era. */
 			/* LEGAL_ALT(ALT_E | ALT_O); */
 			ymd |= SET_YEAR;
 			if ((alt_format & ALT_E) && *era_info)
@@ -703,8 +711,8 @@ literal:
 				const unsigned char *ep;
 
 				ep = find_string(bp, &i,
-					       	 (const char * const *)tzname,
-					       	  NULL, 2, locale);
+						 (const char * const *)tzname,
+						  NULL, 2, locale);
 				if (ep != NULL) {
 					tm->tm_isdst = i;
 #ifdef TM_GMTOFF
@@ -750,7 +758,7 @@ literal:
 	    /* Check if year falls into the era.  If not, it's an
 	       invalid combination of era and offset. */
 	    if (era->start.tm_year > tm->tm_year
-	    	|| era->end.tm_year < tm->tm_year)
+		|| era->end.tm_year < tm->tm_year)
 	      return NULL;
 	    tm->tm_year -= TM_YEAR_BASE;
 	  }

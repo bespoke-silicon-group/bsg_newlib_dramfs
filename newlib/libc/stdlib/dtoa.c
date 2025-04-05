@@ -32,6 +32,11 @@
 #include <string.h>
 #include "mprec.h"
 
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local struct _Bigint *_tls_mp_result;
+_Thread_local int _tls_mp_result_k;
+#endif
+
 static int
 quorem (_Bigint * b, _Bigint * S)
 {
@@ -423,7 +428,7 @@ _dtoa_r (struct _reent *ptr,
   for (_REENT_MP_RESULT_K(ptr) = 0; sizeof (_Bigint) - sizeof (__ULong) + j <= i;
        j <<= 1)
     _REENT_MP_RESULT_K(ptr)++;
-  _REENT_MP_RESULT(ptr) = Balloc (ptr, _REENT_MP_RESULT_K(ptr));
+  _REENT_MP_RESULT(ptr) = eBalloc (ptr, _REENT_MP_RESULT_K(ptr));
   s = s0 = (char *) _REENT_MP_RESULT(ptr);
 
   if (ilim >= 0 && ilim <= Quick_max && try_quick)
@@ -743,7 +748,7 @@ _dtoa_r (struct _reent *ptr,
       mlo = mhi;
       if (spec_case)
 	{
-	  mhi = Balloc (ptr, mhi->_k);
+	  mhi = eBalloc (ptr, mhi->_k);
 	  Bcopy (mhi, mlo);
 	  mhi = lshift (ptr, mhi, Log2P);
 	}

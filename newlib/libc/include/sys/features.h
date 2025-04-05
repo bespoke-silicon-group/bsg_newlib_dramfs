@@ -87,6 +87,9 @@ extern "C" {
  * _ISOC11_SOURCE or gcc -std=c11 or g++ -std=c++11
  * 	ISO C11
  *
+ * _ISOC2x_SOURCE or gcc -std=c2x or g++ -std=c++20
+ * 	ISO C11
+ *
  * _ATFILE_SOURCE (implied by _POSIX_C_SOURCE >= 200809L)
  *	"at" functions
  *
@@ -114,6 +117,8 @@ extern "C" {
 #define	_ISOC99_SOURCE		1
 #undef _ISOC11_SOURCE
 #define	_ISOC11_SOURCE		1
+#undef _ISOC2X_SOURCE
+#define	_ISOC2X_SOURCE		1
 #undef _POSIX_SOURCE
 #define	_POSIX_SOURCE		1
 #undef _POSIX_C_SOURCE
@@ -215,6 +220,11 @@ extern "C" {
  * 	g++ -std=c++11 or newer (on by default since GCC 6), or with
  * 	_ISOC11_SOURCE.
  *
+ * __ISO_C_VISIBLE >= 2020
+ * 	ISO C2x; enabled with gcc -std=c2x or newer,
+ * 	g++ -std=c++20 or newer, or with
+ * 	_ISOC2X_SOURCE.
+ *
  * __ATFILE_VISIBLE
  *	"at" functions; enabled by default, with _ATFILE_SOURCE,
  * 	_POSIX_C_SOURCE >= 200809L, or _XOPEN_SOURCE >= 700.
@@ -261,7 +271,10 @@ extern "C" {
 #define	__GNU_VISIBLE		0
 #endif
 
-#if defined(_ISOC11_SOURCE) || \
+#if defined(_ISOC2X_SOURCE) || \
+  (__STDC_VERSION__ - 0) > 201710L || (__cplusplus - 0) >= 202002L
+#define __ISO_C_VISIBLE		2020
+#elif defined(_ISOC11_SOURCE) || \
   (__STDC_VERSION__ - 0) >= 201112L || (__cplusplus - 0) >= 201103L
 #define	__ISO_C_VISIBLE		2011
 #elif defined(_ISOC99_SOURCE) || (_POSIX_C_SOURCE - 0) >= 200112L || \
@@ -320,7 +333,8 @@ extern "C" {
 #endif
 
 #if _FORTIFY_SOURCE > 0 && !defined(__cplusplus) && !defined(__lint__) && \
-   (__OPTIMIZE__ > 0 || defined(__clang__)) && __GNUC_PREREQ__(4, 1)
+   (__OPTIMIZE__ > 0 || defined(__clang__)) && __GNUC_PREREQ__(4, 1) && \
+   !defined(_LIBC)
 #  if _FORTIFY_SOURCE > 1
 #    define __SSP_FORTIFY_LEVEL 2
 #  else
@@ -521,9 +535,13 @@ extern "C" {
 /* #define _XOPEN_UNIX				    -1 */
 #endif /* __XSI_VISIBLE */
 
-/* The value corresponds to UNICODE version 5.2, which is the current
-   state of newlib's wide char conversion functions. */
-#define __STDC_ISO_10646__ 200910L
+/*
+ * newlib's wide char conversion functions were updated on
+ *	2019-01-12
+ * to UNICODE version:
+ *	11.0.0 released 2018-06-05
+ */
+#define __STDC_ISO_10646__ 201806L
 
 #endif /* __CYGWIN__ */
 

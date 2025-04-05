@@ -18,7 +18,7 @@ Windows into the C library.  Then your apps should (ideally) run on POSIX
 systems (Unix/Linux) and Windows with no changes at the source level.
 </para>
 <para>The C library is in a DLL, which makes basic applications quite small.
-And it allows relatively easy upgrades to the Win32/POSIX translation
+And it allows relatively easy upgrades to the Windows/POSIX translation
 layer, providing that DLL changes stay backward-compatible.
 </para>
 <para>For a good overview of Cygwin, you may want to read the Cygwin
@@ -30,13 +30,23 @@ User's Guide.
 <question><para>Are development snapshots for the Cygwin library available?</para></question>
 <answer>
 
-<para>Yes.  They're made whenever anything interesting happens inside the
-Cygwin library (usually roughly on a nightly basis, depending on how much
-is going on).  They are only intended for those people who wish to
-contribute code to the project.  If you aren't going to be happy
-debugging problems in a buggy snapshot, avoid these and wait for a real
-release.  The snapshots are available from
-<ulink url="https://cygwin.com/snapshots/"/>.
+<para>Starting December 2022, the old developer snapshots have been
+deprecated by regular, automated test releases.  See the next FAQ entry
+<xref linkend="faq.api.testrels"></xref>
+</para>
+</answer></qandaentry>
+
+<qandaentry id="faq.api.testrels" xreflabel="Test Releases">
+<question><para>Are test releases for the Cygwin library available?</para></question>
+<answer>
+
+<para>Yes.  Starting December 2022, regular, automated test releases
+are created whenever a significant patch is pushed to the Cygwin git
+repo at <ulink url="https://cygwin.com/cgit/newlib-cygwin/"/>.
+You can download the cygwin package test releases just like any other
+test release for any Cgywin package using the Cygwin Setup program.
+For more info, see
+<xref linkend="faq.setup.testrels"></xref>.
 </para>
 </answer></qandaentry>
 
@@ -140,7 +150,7 @@ spawn family of calls if possible.
 <para>Here's how it works:
 </para>
 <para>Parent initializes a space in the Cygwin process table for child.
-Parent creates child suspended using Win32 CreateProcess call, giving
+Parent creates child suspended using Windows CreateProcess call, giving
 the same path it was invoked with itself.  Parent calls setjmp to save
 its own context and then sets a pointer to this in the Cygwin shared
 memory area (shared among all Cygwin tasks).  Parent fills in the child's
@@ -154,6 +164,11 @@ notices child is in safe area, copies stack and heap from itself into
 child, releases the mutex the child is waiting on and returns from the
 fork call.  Child wakes from blocking on mutex, recreates any mmapped
 areas passed to it via shared area and then returns from fork itself.
+</para>
+<para>When the executable or any dll in use by the parent was renamed or
+moved into the hidden recycle bin, fork retries with creating hardlinks
+for the old executable and any dll into per-user subdirectories in the
+/var/run/cygfork/ directory, when that one exists and resides on NTFS.
 </para>
 </answer></qandaentry>
 
@@ -175,37 +190,108 @@ expect.
 <question><para>How do symbolic links work?</para></question>
 <answer>
 
-<para>Cygwin knows of two ways to create symlinks.
-</para>
-<para>The default method generates link files with a magic header.  When you
-open a file or directory that is a link to somewhere else, it opens the file
-or directory listed in the magic header.  Because we don't want to have to
-open every referenced file to check symlink status, Cygwin marks symlinks
-with the system attribute.  Files without the system attribute are not
-checked.  Because remote samba filesystems do not enable the system
-attribute by default, symlinks do not work on network drives unless you
-explicitly enable this attribute or use the second method to create symlinks.
+<para>Cygwin knows of five ways to create symlinks.  This is really
+complicated stuff since we started out way back when Windows didn't
+know symlinks at all.  The rest is history...
 </para>
 
-<para>The second method is enabled if `winsymlinks' is set in the environment
-variable CYGWIN.
-Using this method, Cygwin generates symlinks by creating Windows shortcuts.
-Cygwin created shortcuts have a special header (which is in that way never
-created by Explorer) and the R/O attribute set.  A DOS path is stored in
-the shortcut as usual and the description entry is used to store the POSIX
-path.  While the POSIX path is stored as is, the DOS path has perhaps to be
-rearranged to result in a valid path.  This may result in a divergence
-between the DOS and the POSIX path when symlinks are moved crossing mount
-points.  When a user changes the shortcut, this will be detected by Cygwin
-and it will only use the DOS path then.  While Cygwin shortcuts are shown
-without the ".lnk" suffix in `ls' output, non-Cygwin shortcuts are shown
-with the suffix.  However, both are treated as symlinks.
+<itemizedlist spacing="compact">
+
+<listitem><para>
+Starting with Cygwin 3.1.5 in 2020, symlinks are created by default as a
+special reparse point type known as "WSL symlinks".  These have been
+introduced on Windows 10 with the advent of WSL, "Windows Subsystem for
+Linux".  WSL symlinks created by Cygwin are understood by WSL and vice
+versa.  They contain a normal POSIX path as used in the Cygwin and WSL
+environments.  Windows itself recognizes them as arbitrary reparse
+points (CMD's "dir" command shows them as "[JUNCTION]") but it doesn't
+know how to follow them to the target.  Older Windows versions handle
+these symlinks exactly the same way, so there's no point using different
+symlink types on older Windows.  These symlinks only work on filesystems
+supporting reparse points, but fortunately there's another symlink type
+Cygwin creates, right the next bullet point...
+</para></listitem>
+
+<listitem><para>
+The original default method creating symlinks in Cygwin since pre-2000
+generates symlinks as simple files with a magic header and the DOS
+SYSTEM attribute set.  When you open a file or directory through such a
+symlink, Cygwin opens the file, checks the magic header, and if it's
+correct, reads the target of the symlink from the remainder of the file.
+Because we don't want having to open every referenced file to check
+symlink status, Cygwin only opens files with DOS SYSTEM attribute set to
+inspect them for being a Cygwin symlink.  These symlinks also work
+on filesystems not supporting reparse points, i. e., FAT/FAT32/ExFAT.
+</para></listitem>
+
+<listitem><para>
+A very special case are NFS filesystems, supported by Cygwin since 2008
+via the Microsoft NFS driver, unfortunately only available in Enterprise
+versions of Windows.  Filesystems shared via NFS usually support symlinks
+all by themselves, and the Microsoft driver has special functionality to
+support them.  Cygwin utilizes this interface to create "real" symlinks
+on filesystems mounted via NFS.
+</para></listitem>
+
+<listitem><para>
+Starting 2013, Cygwin also supports NTFS symlinks, introduced with
+Windows Vista.  These symlinks are reparse points containing a Windows
+path.  Creating them is enabled by setting 'winsymlinks:native' or
+'winsymlinks:nativestrict' in the environment variable CYGWIN.  The
+upside of this symlink type is that the path is stored as Windows path
+so they are understood by non-Cygwin Windows tools as well.  The downsides
+are:
+<itemizedlist spacing="compact">
+<listitem><para>
+The path is stored as Windows path, so the path has perhaps to be rearranged
+to result in a valid path.  This may result in a divergence from the original
+POSIX path the user intended.
+</para></listitem>
+<listitem><para>
+Creating NTFS symlinks require administrative privileges by default.  You
+have to make certain settings in the OS (depending on the Windows version)
+to allow creating them as a non-privileged user.
+</para></listitem>
+<listitem><para>
+NTFS symlinks have a type.  They are either a "file" or a "directory",
+depending on the target file type.  This information is utilized especially
+by Windows Explorer to show the correct file or directory icon in file
+listings without having to check on the target file and to know what
+actions are provided by clicking on the symlink.  However, if a NTFS
+symlink points to a file "foo", and "foo" is deleted and replaced by
+a directory "foo", the symlink type of an NTFS symlink pointing to "foo"
+is unchanged and subsequently Windows Explorer will misbehave.
+Consequentially, creating dangling NTFS symlinks is a nuisance, since
+the library does not know what type the still-to-be-created symlink
+target will be.  Cygwin will not create dangling NTFS symlinks, but
+fallback to creating the default symlink type (winsymlinks:native) or
+just fail (winsymlinks:nativestrict).
+</para></listitem>
+</itemizedlist>
+</para></listitem>
+
+<listitem><para>
+Another method, available since 2001, is enabled if `winsymlinks'  or
+'winsymlinks:lnk' is set in the environment variable CYGWIN.  Using this
+method, Cygwin generates symlinks by creating Windows shortcuts .
+Cygwin created shortcuts have a special header (which is never created
+by Explorer that way) and the DOS READONLY attribute set.  A Windows
+path is stored in the shortcut as usual and the POSIX path is stored in
+the remainder of the file.  While the POSIX path is stored as is, the
+Windows path has perhaps to be rearranged to result in a valid path.
+This may result in a divergence between the Windows and the POSIX path
+when symlinks are moved crossing mount points.  When a user changes the
+shortcut, this will be detected by Cygwin and it will only use the
+Windows path then.  While Cygwin shortcuts are shown without the ".lnk"
+suffix in `ls' output, non-Cygwin shortcuts are shown with the suffix.
 </para>
 
-<para>Both, types of symlinks can live peacefully together since Cygwin
-treats both as symlinks regardless of the setting of `(no)winsymlinks' in
-the environment variable CYGWIN.
-</para>
+<para>For enabling this or the preceeding symlink type, see
+<ulink url="https://cygwin.com/cygwin-ug-net/using-cygwinenv.html"/>
+</para></listitem>
+
+</itemizedlist>
+
 </answer></qandaentry>
 
 <qandaentry id="faq.api.executables">
@@ -250,7 +336,7 @@ name under the API.
 <para>E.g., the POSIX select system call can wait on a standard file handles
 and handles to sockets.  The select call in Winsock can only wait on
 sockets.  Because of this, the Cygwin dll does a lot of nasty stuff behind
-the scenes, trying to persuade various Winsock/Win32 functions to do what
+the scenes, trying to persuade various Winsock/Windows functions to do what
 a Unix select would do.
 </para>
 <para>If you are porting an application which already uses Winsock, then
@@ -261,11 +347,11 @@ direct calls to Winsock functions.  If you use Cygwin, use the POSIX API.
 </answer></qandaentry>
 
 <qandaentry id="faq.api.winsock">
-<question><para>I don't want Unix sockets, how do I use normal Win32 winsock?</para></question>
+<question><para>I don't want Unix sockets, how do I use normal Windows winsock?</para></question>
 <answer>
 
 <para>You don't.  Look for the Mingw-w64 project to port applications using
-native Win32/Winsock functions.  Cross compilers packages to build Mingw-w64
+native Windows API/Winsock functions.  Cross compilers packages to build Mingw-w64
 targets are available in the Cygwin distro.
 </para>
 </answer></qandaentry>
@@ -309,13 +395,43 @@ Cygwin version number details, check out the
 </answer></qandaentry>
 
 <qandaentry id="faq.api.timezone">
-<question><para>Why isn't timezone set correctly?</para></question>
+<question><para>Why isn't my time (or zone) set correctly?</para></question>
 <answer>
 
-<para><emphasis role='bold'>(Please note: This section has not yet been updated for the latest net release.)</emphasis>
+<para>Daylight saving (Summer time) and other time zone changes are
+decided on by politicians, and announced by government officials,
+sometimes with short or no notice, so time zone updates are released at
+least a few, and sometimes several, times a year.
+Details of changes are not known until they are announced publicly by
+officials, often in foreign languages.
+Those details then have to be noticed, possibly translated, passed to,
+picked up, and applied by the official <filename>tzdata</filename>
+source package maintainers.
+That information has to be compiled, checked, and released publicly in
+an update to the official <filename>tzdata</filename> source package.
+Then those changes have to be picked up and applied to the Cygwin
+<filename>tzdata</filename> package, which has to be updated, built,
+tested, and released publicly.
 </para>
-<para>Did you explicitly call tzset() before checking the value of timezone?
-If not, you must do so.
+<para>Time zone settings are updates to the daylight saving (Summer
+time) rules for dates of changes, hour offsets from UTC of time zones,
+and the geographic regions to which those rules and offsets apply,
+provided in the <filename>tzdata</filename> package included in all
+Cygwin installations.
+Have you run the Cygwin Setup program recently to update at least
+the <filename>tzdata</filename> package?
+</para>
+<para>Are you developing applications using times which may be affected
+by time zones?
+Since the <literal>ctime()</literal>, <literal>localtime()</literal>,
+<literal>mktime()</literal>, and <literal>strftime()</literal> functions
+are required to set time zone information as if by calling
+<literal>tzset()</literal>, there is no need for an explicit
+<literal>tzset()</literal> call before using these functions.
+However, if none of the above functions are called first, applications
+should ensure <literal>tzset()</literal> is called explicitly before
+using any other time functions, or checking or using time zone
+information.
 </para>
 </answer></qandaentry>
 

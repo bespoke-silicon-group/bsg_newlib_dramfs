@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -124,8 +124,6 @@ _ungetc_r (struct _reent *rptr,
   CHECK_INIT (rptr, fp);
 
   _newlib_flockfile_start (fp);
-
-  ORIENT (fp, -1);
 
   /* After ungetc, we won't be at eof anymore */
   fp->_flags &= ~__SEOF;

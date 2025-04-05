@@ -20,44 +20,59 @@ main (int argc, char **argv)
 {
   STARTUPINFO sa;
   PROCESS_INFORMATION pi;
+  DWORD res;
   DWORD ec = 1;
   char *p;
+  DWORD timeout = 60 * 1000;
 
   if (argc < 2)
     {
       fprintf (stderr, "Usage: cygrun [program]\n");
-      exit (0);
-    }
-
-  SetEnvironmentVariable ("CYGWIN_TESTING", "1");
-  if ((p = getenv ("CYGWIN")) == NULL || (strstr (p, "ntsec") == NULL))
-    {
-      char buf[4096];
-      if (!p)
-	{
-	  p = buf;
-	  p[0] = '\0';
-	}
-      else
-	{
-	  strcpy (buf, p);
-	  strcat (buf, " ");
-	}
-      strcat(buf, "ntsec");
-      SetEnvironmentVariable ("CYGWIN", buf);
-    }
-
-  memset (&sa, 0, sizeof (sa));
-  memset (&pi, 0, sizeof (pi));
-  if (!CreateProcess (0, argv[1], 0, 0, 1, 0, 0, 0, &sa, &pi))
-    {
-      fprintf (stderr, "CreateProcess %s failed\n", argv[1]);
       exit (1);
     }
 
-  WaitForSingleObject (pi.hProcess, INFINITE);
+  int i;
+  for (i = 1; i < argc; ++i)
+    {
+      if (strcmp (argv[i], "-notimeout") == 0)
+	timeout = INFINITE;
+      else
+	break;
+    }
 
-  GetExitCodeProcess (pi.hProcess, &ec);
+  char *command = argv[i];
+
+  if (i < (argc-1))
+    {
+      fprintf (stderr, "cygrun: excess arguments\n");
+      exit (1);
+    }
+
+  SetEnvironmentVariable ("CYGWIN_TESTING", "1");
+
+  memset (&sa, 0, sizeof (sa));
+  memset (&pi, 0, sizeof (pi));
+  if (!CreateProcess (0, command, 0, 0, 1, 0, 0, 0, &sa, &pi))
+    {
+      fprintf (stderr, "CreateProcess %s failed\n", command);
+      exit (1);
+    }
+
+  res = WaitForSingleObject (pi.hProcess, timeout);
+
+  if (res == WAIT_TIMEOUT)
+    {
+      char cmd[1024];
+      // there is no simple API to kill a Windows process tree
+      sprintf(cmd, "taskkill /f /t /pid %lu", GetProcessId(pi.hProcess));
+      system(cmd);
+      fprintf (stderr, "Timeout\n");
+      ec = 124;
+    }
+  else
+    {
+      GetExitCodeProcess (pi.hProcess, &ec);
+    }
 
   CloseHandle (pi.hProcess);
   CloseHandle (pi.hThread);

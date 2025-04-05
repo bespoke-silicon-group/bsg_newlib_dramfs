@@ -27,6 +27,8 @@
 #include <reent.h>
 #include <unistd.h>
 
+extern int main (int, char **, char **);
+
 register char *stack_ptr asm ("SP");
 
 static inline int
@@ -101,6 +103,7 @@ void
 _exit (int n)
 {
   do_syscall (SYS_exit, &n);
+  __builtin_unreachable ();
 }
 
 int
@@ -153,7 +156,7 @@ _sbrk (int incr)
   return (caddr_t) prev_heap_end;
 }
 
-extern void memset (struct stat *, int, unsigned int);
+extern void *memset (void *, int, unsigned int);
 
 int
 _fstat (int file, struct stat *st)
@@ -190,7 +193,7 @@ _link (const char *existing, const char *new)
 int
 _unlink (const char *path)
 {
-  return do_syscall (SYS_unlink, path);
+  return do_syscall (SYS_unlink, (char *) path);
 }
 
 void
@@ -253,7 +256,7 @@ __setup_argv_for_main (int argc)
     do_syscall (SYS_argn, (void *)block);
   }
 
-  return main (argc, argv);
+  return main (argc, argv, NULL);
 }
 
 int
@@ -262,7 +265,7 @@ __setup_argv_and_call_main ()
   int argc = do_syscall (SYS_argc, 0);
 
   if (argc <= 0)
-    return main (argc, NULL);
+    return main (argc, NULL, NULL);
   else
     return __setup_argv_for_main (argc);
 }

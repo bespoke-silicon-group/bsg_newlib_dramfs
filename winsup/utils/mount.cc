@@ -203,7 +203,7 @@ static struct option longopts[] =
 
 static char opts[] = "acfhmpVo:";
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE *where = stderr)
 {
   char *options;
@@ -256,7 +256,7 @@ int
 main (int argc, char **argv)
 {
   int i;
-  int flags = MOUNT_BINARY;
+  int flags = 0;
   char *options = strdup ("");
   enum do_what
   {

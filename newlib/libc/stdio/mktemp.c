@@ -7,9 +7,8 @@
  * notice and comment, and (2) distributions including binaries display
  * the following acknowledgement:  ``This product includes software
  * developed by the University of California, Berkeley and its contributors''
- * in the documentation or other materials provided with the distribution
- * and in all advertising materials mentioning features or use of this
- * software. Neither the name of the University nor the names of its
+ * in the documentation or other materials provided with the distribution.
+ * Neither the name of the University nor the names of its
  * contributors may be used to endorse or promote products derived
  * from this software without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
@@ -160,7 +159,7 @@ _gettemp (struct _reent *ptr,
     continue;
   if (trv - path < suffixlen)
     {
-      ptr->_errno = EINVAL;
+      _REENT_ERRNO(ptr) = EINVAL;
       return 0;
     }
   trv -= suffixlen;
@@ -172,7 +171,7 @@ _gettemp (struct _reent *ptr,
     }
   if (end - trv < 6)
     {
-      ptr->_errno = EINVAL;
+      _REENT_ERRNO(ptr) = EINVAL;
       return 0;
     }
 
@@ -196,7 +195,7 @@ _gettemp (struct _reent *ptr,
 	    return (0);
 	  if (!(sbuf.st_mode & S_IFDIR))
 	    {
-	      ptr->_errno = ENOTDIR;
+	      _REENT_ERRNO(ptr) = ENOTDIR;
 	      return (0);
 	    }
 	  *trv = '/';
@@ -212,10 +211,10 @@ _gettemp (struct _reent *ptr,
 #ifdef HAVE_MKDIR
 	  if (_mkdir_r (ptr, path, 0700) == 0)
 	    return 1;
-	  if (ptr->_errno != EEXIST)
+	  if (_REENT_ERRNO(ptr) != EEXIST)
 	    return 0;
 #else /* !HAVE_MKDIR */
-	  ptr->_errno = ENOSYS;
+	  _REENT_ERRNO(ptr) = ENOSYS;
 	  return 0;
 #endif /* !HAVE_MKDIR */
 	}
@@ -226,7 +225,7 @@ _gettemp (struct _reent *ptr,
 	  if ((*doopen = _open_r (ptr, path, O_CREAT | O_EXCL | O_RDWR | flags,
 				  0600)) >= 0)
 	    return 1;
-	  if (ptr->_errno != EEXIST)
+	  if (_REENT_ERRNO(ptr) != EEXIST)
 	    return 0;
 	}
 #ifdef __USE_INTERNAL_STAT64
@@ -234,7 +233,7 @@ _gettemp (struct _reent *ptr,
 #else
       else if (_stat_r (ptr, path, &sbuf))
 #endif
-	return (ptr->_errno == ENOENT ? 1 : 0);
+	return (_REENT_ERRNO(ptr) == ENOENT ? 1 : 0);
 
       /* tricky little algorithm for backward compatibility */
       for (trv = start;;)

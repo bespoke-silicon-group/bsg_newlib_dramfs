@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #if __POSIX_VISIBLE >= 200809
-#include <xlocale.h>
+#include <sys/_locale.h>
 #endif
 
 #if __BSD_VISIBLE
@@ -130,7 +130,7 @@ char	*strlwr (char *);
 char	*strupr (char *);
 #endif
 
-#ifndef DEFS_H	/* Kludge to work around problem compiling in gdb */
+#if __POSIX_VISIBLE >= 200809
 char	*strsignal (int __signo);
 #endif
 

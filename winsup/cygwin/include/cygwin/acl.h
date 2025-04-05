@@ -25,7 +25,7 @@ extern "C" {
 
 /* Windows ACLs have a maximum size of 64K.  Counting the most pessimistic way,
    the maximum number of ACEs is 3276.  Technet claims "approximately 1820",
-   which uses the length of normal user and group SIDs for the computation. 
+   which uses the length of normal user and group SIDs for the computation.
    We're now going with 2730, the number of aclent_t entries matching a 32K
    buffer.
    On one hand, there are only a limited number of SIDs shorter than the normal
@@ -70,7 +70,6 @@ typedef struct acl {
     mode_t       a_perm;    /* permissions */
 } aclent_t;
 
-#ifndef __INSIDE_CYGWIN__
 extern int	 acl (const char *__path, int __cmd, int __nentries,
 		      aclent_t *__aclbufp);
 extern int	 facl (int __fd, int __cmd, int __nentries,
@@ -87,7 +86,6 @@ extern int	 aclfrompbits (aclent_t *__aclbufp, int __nentries,
 			       mode_t *__pbitsp);
 extern char	*acltotext (aclent_t *__aclbufp, int __aclcnt);
 extern aclent_t *aclfromtext (char *__acltextp, int *__aclcnt);
-#endif
 
 #ifdef __cplusplus
 }

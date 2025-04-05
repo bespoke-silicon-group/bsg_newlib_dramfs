@@ -5,14 +5,14 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
  * from this software without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 /* No user fns here. Pesch 15apr92 */
 
@@ -56,7 +56,7 @@ __sflags (struct _reent *ptr,
       o = O_CREAT | O_APPEND;
       break;
     default:			/* illegal mode */
-      ptr->_errno = EINVAL;
+      _REENT_ERRNO(ptr) = EINVAL;
       return (0);
     }
   while (*++mode)
@@ -89,10 +89,6 @@ __sflags (struct _reent *ptr,
 	  break;
 	}
     }
-#if defined (O_TEXT) && !defined (__CYGWIN__)
-  if (!(m | O_BINARY))
-    m |= O_TEXT;
-#endif
   *optr = m | o;
   return ret;
 }

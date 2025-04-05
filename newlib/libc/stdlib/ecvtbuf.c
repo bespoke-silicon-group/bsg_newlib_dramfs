@@ -57,6 +57,11 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include "mprec.h"
 #include "local.h"
 
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local char *_tls_cvtbuf;
+_Thread_local int _tls_cvtlen;
+#endif
+
 static void
 print_f (struct _reent *ptr,
 	char *buf,
@@ -93,7 +98,8 @@ print_f (struct _reent *ptr,
     {
       if (p == start)
 	*buf++ = '0';
-      *buf++ = '.';
+      if (decpt < 0 && ndigit > 0)
+	*buf++ = '.';
       while (decpt < 0 && ndigit > 0)
 	{
 	  *buf++ = '0';
@@ -148,11 +154,15 @@ print_e (struct _reent *ptr,
     }
 
   *buf++ = *p++;
-  if (dot || ndigit != 0)
-    *buf++ = '.';
+  if (ndigit > 0)
+    dot = 1;
 
   while (*p && ndigit > 0)
     {
+      if (dot) {
+	*buf++ = '.';
+	dot = 0;
+      }
       *buf++ = *p++;
       ndigit--;
     }
@@ -168,6 +178,10 @@ print_e (struct _reent *ptr,
     {
       while (ndigit > 0)
 	{
+	  if  (dot) {
+	    *buf++ = '.';
+	    dot = 0;
+	  }
 	  *buf++ = '0';
 	  ndigit--;
 	}
@@ -221,28 +235,21 @@ fcvtbuf (double invalue,
 
   if (fcvt_buf == NULL)
     {
-      if (reent->_cvtlen <= ndigit + 35)
+      if (_REENT_CVTLEN(reent) <= ndigit + 35)
 	{
-	  if ((fcvt_buf = (char *) _realloc_r (reent, reent->_cvtbuf,
+	  if ((fcvt_buf = (char *) _realloc_r (reent, _REENT_CVTBUF(reent),
 					       ndigit + 36)) == NULL)
 	    return NULL;
-	  reent->_cvtlen = ndigit + 36;
-	  reent->_cvtbuf = fcvt_buf;
+	  _REENT_CVTLEN(reent) = ndigit + 36;
+	  _REENT_CVTBUF(reent) = fcvt_buf;
 	}
 
-      fcvt_buf = reent->_cvtbuf ;
+      fcvt_buf = _REENT_CVTBUF(reent) ;
     }
 
   save = fcvt_buf;
 
-  if (invalue < 1.0 && invalue > -1.0)
-    {
-      p = _dtoa_r (reent, invalue, 2, ndigit, decpt, sign, &end);
-    }
-  else
-    {
-      p = _dtoa_r (reent, invalue, 3, ndigit, decpt, sign, &end);
-    }
+  p = _dtoa_r (reent, invalue, 3, ndigit, decpt, sign, &end);
 
   /* Now copy */
 
@@ -277,16 +284,16 @@ ecvtbuf (double invalue,
 
   if (fcvt_buf == NULL)
     {
-      if (reent->_cvtlen <= ndigit)
+      if (_REENT_CVTLEN(reent) <= ndigit)
 	{
-	  if ((fcvt_buf = (char *) _realloc_r (reent, reent->_cvtbuf,
+	  if ((fcvt_buf = (char *) _realloc_r (reent, _REENT_CVTBUF(reent),
 					       ndigit + 1)) == NULL)
 	    return NULL;
-	  reent->_cvtlen = ndigit + 1;
-	  reent->_cvtbuf = fcvt_buf;
+	  _REENT_CVTLEN(reent) = ndigit + 1;
+	  _REENT_CVTBUF(reent) = fcvt_buf;
 	}
 
-      fcvt_buf = reent->_cvtbuf ;
+      fcvt_buf = _REENT_CVTBUF(reent) ;
     }
 
   save = fcvt_buf;
@@ -356,15 +363,10 @@ _gcvt (struct _reent *ptr,
       char *end;
       char *p;
 
-      if (invalue < 1.0)
-	{
-	  /* what we want is ndigits after the point */
-	  p = _dtoa_r (ptr, invalue, 3, ndigit, &decpt, &sign, &end);
-	}
-      else
-	{
-	  p = _dtoa_r (ptr, invalue, 2, ndigit, &decpt, &sign, &end);
-	}
+      /* We always want ndigits of precision, even if that means printing
+       * a bunch of leading zeros for numbers < 1.0
+       */
+      p = _dtoa_r (ptr, invalue, 2, ndigit, &decpt, &sign, &end);
 
       if (decpt == 9999)
 	{
@@ -390,11 +392,12 @@ _gcvt (struct _reent *ptr,
 	  if (buf == save)
 	    *buf++ = '0';
 	  *buf++ = '.';
-	  while (decpt < 0 && ndigit > 0)
+
+	  /* Leading zeros don't count towards 'ndigit' */
+	  while (decpt < 0)
 	    {
 	      *buf++ = '0';
 	      decpt++;
-	      ndigit--;
 	    }
 
 	  /* Print rest of stuff */

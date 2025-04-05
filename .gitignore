@@ -30,6 +30,10 @@ libtool
 POTFILES
 *-POTFILES
 
+winsup/aclocal.m4
+winsup/configure
+winsup/**/Makefile.in
+
 tags
 TAGS
 TAGS.sub

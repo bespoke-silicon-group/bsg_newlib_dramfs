@@ -17,7 +17,7 @@ details. */
 #include "cygtls.h"
 
 extern "C" int
-fcntl64 (int fd, int cmd, ...)
+fcntl (int fd, int cmd, ...)
 {
   int res = -1;
   intptr_t arg = 0;
@@ -43,7 +43,7 @@ fcntl64 (int fd, int cmd, ...)
 	 case which is covered here by always reading the arg with
 	 sizeof (intptr_t) == sizeof (long) == sizeof (void*) which matches
 	 all targets.
-	 
+
 	 However, the POSIX standard defines all numerical args as type int.
 	 If we take that literally, we had a (small) problem on 64 bit, since
 	 sizeof (void*) != sizeof (int).  If we would like to follow POSIX more
@@ -57,7 +57,7 @@ fcntl64 (int fd, int cmd, ...)
 	{
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
-	  if (arg >= 0 && arg < OPEN_MAX_MAX)
+	  if (arg >= 0 && arg < OPEN_MAX)
 	    {
 	      int flags = cmd == F_DUPFD_CLOEXEC ? O_CLOEXEC : 0;
 	      res = cygheap->fdtab.dup3 (fd, cygheap_fdnew ((arg) - 1), flags);
@@ -79,46 +79,4 @@ fcntl64 (int fd, int cmd, ...)
   return res;
 }
 
-#ifdef __i386__
-extern "C" int
-_fcntl (int fd, int cmd, ...)
-{
-  intptr_t arg = 0;
-  va_list args;
-  struct __flock32 *src = NULL;
-  struct flock dst;
-
-  __try
-    {
-      va_start (args, cmd);
-      arg = va_arg (args, intptr_t);
-      va_end (args);
-      if (cmd == F_GETLK || cmd == F_SETLK || cmd == F_SETLKW)
-	{
-	  src = (struct __flock32 *) arg;
-	  dst.l_type = src->l_type;
-	  dst.l_whence = src->l_whence;
-	  dst.l_start = src->l_start;
-	  dst.l_len = src->l_len;
-	  dst.l_pid = src->l_pid;
-	  arg = (intptr_t) &dst;
-	}
-      int res = fcntl64 (fd, cmd, arg);
-      if (cmd == F_GETLK)
-	{
-	  src->l_type = dst.l_type;
-	  src->l_whence = dst.l_whence;
-	  src->l_start = dst.l_start;
-	  src->l_len = dst.l_len;
-	  src->l_pid = (short) dst.l_pid;
-	}
-      return res;
-    }
-  __except (EFAULT)
-  __endtry
-  return -1;
-}
-#else
-EXPORT_ALIAS (fcntl64, fcntl)
-EXPORT_ALIAS (fcntl64, _fcntl)
-#endif
+EXPORT_ALIAS (fcntl, _fcntl)

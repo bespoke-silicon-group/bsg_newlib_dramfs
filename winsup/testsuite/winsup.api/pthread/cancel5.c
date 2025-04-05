@@ -62,7 +62,7 @@ static bag_t threadbag[NUMTHREADS + 1];
 void *
 mythread(void * arg)
 {
-  int result = ((int)PTHREAD_CANCELED + 1);
+  void* result = (void*)((int)(size_t)PTHREAD_CANCELED + 1);
   bag_t * bag = (bag_t *) arg;
 
   assert(bag == &threadbag[bag->threadnum]);
@@ -76,13 +76,27 @@ mythread(void * arg)
   assert(pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) == 0);
 
   /*
-   * We wait up to 10 seconds, waking every 0.1 seconds,
-   * for a cancelation to be applied to us.
+   * We wait up to 30 seconds for a cancelation to be applied to us.
    */
-  for (bag->count = 0; bag->count < 100; bag->count++)
-    Sleep(100);
+  for (bag->count = 0; bag->count < 30; bag->count++)
+    {
+      /* Busy wait to avoid Sleep(), since we can't asynchronous cancel inside a
+	 kernel function. (This is still somewhat fragile as if the async cancel
+	 can fail if it happens to occur while we're inside the kernel function
+	 that time() calls...)  */
+      time_t start = time(NULL);
+      while ((time(NULL) - start) < 1)
+	{
+	  int i;
+	  for (i = 0; i < 1E7; i++)
+	    __asm__ volatile ("pause":::);
+	}
+    }
 
-  return (void *) result;
+  /* Notice if asynchronous cancel got deferred */
+  pthread_testcancel();
+
+  return result;
 }
 
 int
@@ -91,12 +105,13 @@ main()
   int failed = 0;
   int i;
   pthread_t t[NUMTHREADS + 1];
+  int ran_to_completion = 0;
 
   for (i = 1; i <= NUMTHREADS; i++)
     {
       threadbag[i].started = 0;
       threadbag[i].threadnum = i;
-      assert(pthread_create(&t[i], NULL, mythread, (void *) &threadbag[i]) == 0);
+      assert(pthread_create(&t[i], NULL, mythread, &threadbag[i]) == 0);
     }
 
   /*
@@ -135,25 +150,36 @@ main()
   for (i = 1; i <= NUMTHREADS; i++)
     {
       int fail = 0;
-      int result = 0;
+      void* result = (void*)((int)(size_t)PTHREAD_CANCELED + 1);
 
       /*
        * The thread does not contain any cancelation points, so
        * a return value of PTHREAD_CANCELED confirms that async
        * cancelation succeeded.
        */
-      assert(pthread_join(t[i], (void **) &result) == 0);
+      assert(pthread_join(t[i], &result) == 0);
 
-      fail = (result != (int) PTHREAD_CANCELED);
+      fail = (result != PTHREAD_CANCELED);
 
       if (fail)
 	{
-	  fprintf(stderr, "Thread %d: started %d: count %d\n",
+	  fprintf(stderr, "Thread %d: started %d: count %d: result %d\n",
 		  i,
 		  threadbag[i].started,
-		  threadbag[i].count);
+		  threadbag[i].count,
+		  result);
 	}
+
+      if (threadbag[i].count >= 30)
+       ran_to_completion++;
+
       failed = (failed || fail);
+    }
+
+  if (ran_to_completion >= 10)
+    {
+      fprintf(stderr, "All threads ran to completion, async cancellation never happened\n");
+      failed = TRUE;
     }
 
   assert(!failed);

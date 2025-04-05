@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -44,7 +44,7 @@
 
 #ifdef __CYGWIN__
 /* Disable __IMPORT when defining __fdlib_version. */
-#define _COMPILING_NEWLIB
+#define _LIBC
 #define _GNU_SOURCE
 #endif
 #include <math.h>
@@ -119,35 +119,4 @@
 # define __FLT_REPORT(NAME) NAME "l"
 #else
 # error "Unknown complex number type"
-#endif
-
-#define __FLT_RPT_DOMAIN(NAME, ARG1, ARG2, RSLT) \
-	errno = EDOM, \
-	__mingw_raise_matherr (_DOMAIN, __FLT_REPORT(NAME), (double) (ARG1), \
-			       (double) (ARG2), (double) (RSLT))
-#define __FLT_RPT_ERANGE(NAME, ARG1, ARG2, RSLT, OVL) \
-	errno = ERANGE, \
-        __mingw_raise_matherr (((OVL) ? _OVERFLOW : _UNDERFLOW), \
-			       __FLT_REPORT(NAME), (double) (ARG1), \
-                               (double) (ARG2), (double) (RSLT))
-
-#ifdef __CYGWIN__
-inline void __attribute__ ((always_inline))
-__mingw_raise_matherr (int typ, const char *name, double a1, double a2,
-		       double rslt)
-{
-  if (_LIB_VERSION != _POSIX_)
-    {
-      struct exception ex;
-      ex.type = typ;
-      ex.name = (char*)name;
-      ex.arg1 = a1;
-      ex.arg2 = a2;
-      ex.retval = rslt;
-      matherr(&ex);
-    }
-}
-#define _DOMAIN		DOMAIN
-#define _OVERFLOW	OVERFLOW
-#define _UNDERFLOW	UNDERFLOW
 #endif

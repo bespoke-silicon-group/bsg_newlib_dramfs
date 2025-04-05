@@ -8,6 +8,8 @@
 #include "path.h"
 #include "fhandler.h"
 #include "ntdll.h"
+#include "dtable.h"
+#include "cygheap.h"
 
 typedef const _device *KR_device_t;
 }
@@ -63,6 +65,21 @@ exists_ntdev_silent (const device& dev)
   return exists_ntdev (dev) ? -1 : false;
 }
 
+static BOOL CALLBACK
+enum_cons_dev (HWND hw, LPARAM lp)
+{
+  unsigned long *bitmask = (unsigned long *) lp;
+  HANDLE h = NULL;
+  fhandler_console::console_state *cs;
+  if ((cs = fhandler_console::open_shared_console (hw, h)))
+    {
+      *bitmask |= (1UL << cs->tty_min_state.getntty ());
+      UnmapViewOfFile ((void *) cs);
+      CloseHandle (h);
+    }
+  return TRUE;
+}
+
 static int
 exists_console (const device& dev)
 {
@@ -72,10 +89,16 @@ exists_console (const device& dev)
     case FH_CONSOLE:
     case FH_CONIN:
     case FH_CONOUT:
-      return fhandler_console::exists ();
+      return cygheap && cygheap->ctty && cygheap->ctty->is_console ()
+	&& fhandler_console::exists ();
     default:
-      /* Only show my own console device (for now?) */
-      return iscons_dev (myself->ctty) && myself->ctty == devn;
+      if (dev.get_minor () < MAX_CONS_DEV)
+	{
+	  unsigned long bitmask = 0;
+	  EnumWindows (enum_cons_dev, (LPARAM) &bitmask);
+	  return bitmask & (1UL << dev.get_minor ());
+	}
+      return false;
     }
 }
 
@@ -91,6 +114,9 @@ const _device dev_cygdrive_storage =
 
 const _device dev_fs_storage =
   {"", {FH_FS}, "", exists};
+
+const _device dev_dev_disk_storage =
+  {"", {FH_DEV_DISK}, "", exists};
 
 const _device dev_proc_storage =
   {"", {FH_PROC}, "", exists};
@@ -115,6 +141,15 @@ const _device dev_piper_storage =
 
 const _device dev_pipew_storage =
   {"", {FH_PIPEW}, "", exists_internal};
+
+const _device dev_signalfd_storage =
+  {"", {FH_SIGNALFD}, "", exists_internal};
+
+const _device dev_timerfd_storage =
+  {"", {FH_TIMERFD}, "", exists_internal};
+
+const _device dev_mqueue_storage =
+  {"", {FH_MQUEUE}, "", exists_internal};
 
 const _device dev_socket_storage =
   {"", {FH_SOCKET}, "", exists_internal};
@@ -141,6 +176,7 @@ const _device dev_error_storage =
    the POSIX namespace.  */
 %%
 "/dev", BRACK(FH_DEV), "", exists, S_IFDIR
+"/dev/disk", BRACK(FH_DEV_DISK), "", exists, S_IFDIR
 "/dev/tty", BRACK(FH_TTY), "/dev/tty", exists, S_IFCHR
 "/dev/pty%(0-127)d", BRACK(FHDEV(DEV_PTYS_MAJOR, {$1})), "/dev/pty{$1}", exists_pty, S_IFCHR, =ptys_dev
 ":ptym%(0-127)d", BRACK(FHDEV(DEV_PTYM_MAJOR, {$1})), "/dev/ptym{$1}", exists_internal, S_IFCHR, =ptym_dev
@@ -148,6 +184,7 @@ const _device dev_error_storage =
 "/dev/console", BRACK(FH_CONSOLE), "/dev/console", exists_console, S_IFCHR, =console_dev
 "/dev/ptmx", BRACK(FH_PTMX), "/dev/ptmx", exists, S_IFCHR
 "/dev/windows", BRACK(FH_WINDOWS), "\\Device\\Null", exists_ntdev, S_IFCHR
+"/dev/mixer", BRACK(FH_OSS_MIXER), "\\Device\\Null", exists_ntdev, S_IFCHR
 "/dev/dsp", BRACK(FH_OSS_DSP), "\\Device\\Null", exists_ntdev, S_IFCHR
 "/dev/conin", BRACK(FH_CONIN), "/dev/conin", exists_console, S_IFCHR
 "/dev/conout", BRACK(FH_CONOUT), "/dev/conout", exists_console, S_IFCHR
@@ -158,14 +195,18 @@ const _device dev_error_storage =
 "/dev/urandom", BRACK(FH_URANDOM), "\\Device\\Null", exists_ntdev, S_IFCHR, =urandom_dev
 "/dev/clipboard", BRACK(FH_CLIPBOARD), "\\Device\\Null", exists_ntdev, S_IFCHR
 "/dev/com%(1-16)d", BRACK(FHDEV(DEV_SERIAL_MAJOR, {$1 - 1})), "\\??\\COM{$1}", exists_ntdev_silent, S_IFCHR
-"/dev/ttyS%(0-63)d", BRACK(FHDEV(DEV_SERIAL_MAJOR, {$1})), "\\??\\COM{$1 + 1}", exists_ntdev, S_IFCHR
+"/dev/ttyS%(0-127)d", BRACK(FHDEV(DEV_SERIAL_MAJOR, {$1})), "\\??\\COM{$1 + 1}", exists_ntdev, S_IFCHR
 ":pipe", BRACK(FH_PIPE), "/dev/pipe", exists_internal, S_IFCHR
 ":fifo", BRACK(FH_FIFO), "/dev/fifo", exists_internal, S_IFCHR
-"/dev/st%(0-127)d", BRACK(FHDEV(DEV_TAPE_MAJOR, {$1})), "\\Device\\Tape{$1}", exists_ntdev, S_IFBLK
-"/dev/nst%(0-127)d", BRACK(FHDEV(DEV_TAPE_MAJOR, {$1 + 128})), "\\Device\\Tape{$1}", exists_ntdev, S_IFBLK
+"/dev/st%(0-127)d", BRACK(FHDEV(DEV_TAPE_MAJOR, {$1})), "\\Device\\Tape{$1}", exists_ntdev, S_IFCHR
+"/dev/nst%(0-127)d", BRACK(FHDEV(DEV_TAPE_MAJOR, {$1 + 128})), "\\Device\\Tape{$1}", exists_ntdev, S_IFCHR
 "/dev/fd%(0-15)d", BRACK(FHDEV(DEV_FLOPPY_MAJOR, {$1})), "\\Device\\Floppy{$1}", exists_ntdev, S_IFBLK
 "/dev/scd%(0-15)d", BRACK(FHDEV(DEV_CDROM_MAJOR, {$1})), "\\Device\\CdRom{$1}", exists_ntdev, S_IFBLK
 "/dev/sr%(0-15)d", BRACK(FHDEV(DEV_CDROM_MAJOR, {$1})), "\\Device\\CdRom{$1}", exists_ntdev, S_IFBLK
+"/dev/fd", BRACK(FH_DEV_FD), "/proc/self/fd", exists, S_IFLNK
+"/dev/stdin", BRACK(FH_DEV_FD), "/proc/self/fd/0", exists, S_IFLNK
+"/dev/stdout", BRACK(FH_DEV_FD), "/proc/self/fd/1", exists, S_IFLNK
+"/dev/stderr", BRACK(FH_DEV_FD), "/proc/self/fd/2", exists, S_IFLNK
 %other	{return	NULL;}
 %%
 #undef BRACK

@@ -21,8 +21,6 @@
 #else
 # include "winsup.h"
 # include <sys/cygwin.h>
-/* custom status code: */
-# define STATUS_ILLEGAL_DLL_PSEUDO_RELOCATION ((NTSTATUS) 0xe0000269)
 #endif
 
 #include <stdio.h>
@@ -365,7 +363,7 @@ do_pseudo_reloc (void * start, void * end, void * base)
 extern "C" void
 _pei386_runtime_relocator (per_process *u)
 {
-  if (u && CYGWIN_VERSION_USE_PSEUDO_RELOC_IN_DLL (u))
+  if (u)
     do_pseudo_reloc (u->pseudo_reloc_start, u->pseudo_reloc_end, u->image_base);
 }
 #else

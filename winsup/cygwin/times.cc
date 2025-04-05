@@ -29,13 +29,11 @@ details. */
 static inline void __attribute__ ((always_inline))
 get_system_time (PLARGE_INTEGER systime)
 {
-  wincap.has_precise_system_time ()
-  	? GetSystemTimePreciseAsFileTime ((LPFILETIME) systime)
-	: GetSystemTimeAsFileTime ((LPFILETIME) systime);
+  GetSystemTimePreciseAsFileTime ((LPFILETIME) systime);
 }
 
 /* Cygwin internal */
-static uint64_t __stdcall
+static uint64_t
 __to_clock_t (PLARGE_INTEGER src, int flag)
 {
   uint64_t total = src->QuadPart;
@@ -72,12 +70,17 @@ times (struct tms *buf)
       /* ticks is in in 100ns, convert to clock ticks. */
       tc = (clock_t) (ticks.QuadPart * CLOCKS_PER_SEC / NS100PERSEC);
 
-      buf->tms_stime = __to_clock_t (&kut.KernelTime, 0);
-      buf->tms_utime = __to_clock_t (&kut.UserTime, 0);
-      timeval_to_filetime (&myself->rusage_children.ru_stime, &kut.KernelTime);
-      buf->tms_cstime = __to_clock_t (&kut.KernelTime, 1);
-      timeval_to_filetime (&myself->rusage_children.ru_utime, &kut.UserTime);
-      buf->tms_cutime = __to_clock_t (&kut.UserTime, 1);
+      /* Linux allows a NULL buf and just returns tc in that case, so
+	 mimic that */
+      if (buf)
+	{
+	  buf->tms_stime = __to_clock_t (&kut.KernelTime, 0);
+	  buf->tms_utime = __to_clock_t (&kut.UserTime, 0);
+	  timeval_to_filetime (&myself->rusage_children.ru_stime, &kut.KernelTime);
+	  buf->tms_cstime = __to_clock_t (&kut.KernelTime, 1);
+	  timeval_to_filetime (&myself->rusage_children.ru_utime, &kut.UserTime);
+	  buf->tms_cutime = __to_clock_t (&kut.UserTime, 1);
+	}
     }
   __except (EFAULT)
     {
@@ -149,7 +152,7 @@ timezone (void)
 }
 
 /* Cygwin internal */
-void __stdcall
+void
 totimeval (struct timeval *dst, PLARGE_INTEGER src, int sub, int flag)
 {
   int64_t x = __to_clock_t (src, flag);
@@ -189,7 +192,7 @@ gettimeofday (struct timeval *__restrict tv, void *__restrict tzvp)
 EXPORT_ALIAS (gettimeofday, _gettimeofday)
 
 /* Cygwin internal */
-void __stdcall
+void
 timespec_to_filetime (const struct timespec *time_in, PLARGE_INTEGER out)
 {
   if (time_in->tv_nsec == UTIME_OMIT)
@@ -200,7 +203,7 @@ timespec_to_filetime (const struct timespec *time_in, PLARGE_INTEGER out)
 }
 
 /* Cygwin internal */
-void __stdcall
+void
 timeval_to_filetime (const struct timeval *time_in, PLARGE_INTEGER out)
 {
   out->QuadPart = time_in->tv_sec * NS100PERSEC
@@ -225,7 +228,7 @@ timeval_to_ms (const struct timeval *time_in, DWORD &ms)
 }
 
 /* Cygwin internal */
-static timeval __stdcall
+static timeval
 time_t_to_timeval (time_t in)
 {
   timeval res;
@@ -260,7 +263,7 @@ timeval_to_timespec (const struct timeval *tvp, struct timespec *tmp)
 
 /* Cygwin internal */
 /* Convert a Win32 time to "UNIX" format. */
-time_t __stdcall
+time_t
 to_time_t (PLARGE_INTEGER ptr)
 {
   /* A file time is the number of 100ns since jan 1 1601
@@ -280,7 +283,7 @@ to_time_t (PLARGE_INTEGER ptr)
 
 /* Cygwin internal */
 /* Convert a Win32 time to "UNIX" timestruc_t format. */
-void __stdcall
+void
 to_timestruc_t (PLARGE_INTEGER ptr, timestruc_t *out)
 {
   /* A file time is the number of 100ns since jan 1 1601
@@ -304,7 +307,7 @@ to_timestruc_t (PLARGE_INTEGER ptr, timestruc_t *out)
 
 /* Cygwin internal */
 /* Get the current time as a "UNIX" timestruc_t format. */
-void __stdcall
+void
 time_as_timestruc_t (timestruc_t * out)
 {
   LARGE_INTEGER systime;
@@ -380,7 +383,7 @@ error:
 
 /* utimes: POSIX/SUSv3 */
 extern "C" int
-utimes (const char *path, const struct timeval *tvp)
+utimes (const char *path, const struct timeval tvp[2])
 {
   path_conv win32 (path, PC_POSIX | PC_SYM_FOLLOW, stat_suffixes);
   struct timespec tmp[2];
@@ -389,7 +392,7 @@ utimes (const char *path, const struct timeval *tvp)
 
 /* BSD */
 extern "C" int
-lutimes (const char *path, const struct timeval *tvp)
+lutimes (const char *path, const struct timeval tvp[2])
 {
   path_conv win32 (path, PC_POSIX | PC_SYM_NOFOLLOW, stat_suffixes);
   struct timespec tmp[2];
@@ -398,7 +401,7 @@ lutimes (const char *path, const struct timeval *tvp)
 
 /* futimens: POSIX/SUSv4 */
 extern "C" int
-futimens (int fd, const struct timespec *tvp)
+futimens (int fd, const struct timespec tvp[2])
 {
   int res;
 
@@ -415,7 +418,7 @@ futimens (int fd, const struct timespec *tvp)
 
 /* BSD */
 extern "C" int
-futimes (int fd, const struct timeval *tvp)
+futimes (int fd, const struct timeval tvp[2])
 {
   struct timespec tmp[2];
   return futimens (fd,  timeval_to_timespec (tvp, tmp));

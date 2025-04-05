@@ -39,11 +39,11 @@ SYNOPSIS
 	int posix_spawn(pid_t *<[pid]>, const char *<[path]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 	int posix_spawnp(pid_t *<[pid]>, const char *<[file]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 
 DESCRIPTION
 Use <<posix_spawn>> and <<posix_spawnp>> to create a new child process
@@ -123,7 +123,13 @@ struct __posix_spawn_file_actions {
 
 typedef struct __posix_spawn_file_actions_entry {
 	STAILQ_ENTRY(__posix_spawn_file_actions_entry) fae_list;
-	enum { FAE_OPEN, FAE_DUP2, FAE_CLOSE } fae_action;
+	enum {
+		FAE_OPEN,
+		FAE_DUP2,
+		FAE_CLOSE,
+		FAE_CHDIR,
+		FAE_FCHDIR
+	} fae_action;
 
 	int fae_fildes;
 	union {
@@ -139,6 +145,10 @@ typedef struct __posix_spawn_file_actions_entry {
 			int newfildes;
 #define fae_newfildes	fae_data.dup2.newfildes
 		} dup2;
+		char *dir;
+#define fae_dir		fae_data.dir
+		int dirfd;
+#define fae_dirfd		fae_data.dirfd
 	} fae_data;
 } posix_spawn_file_actions_entry_t;
 
@@ -235,7 +245,21 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 		/* Perform a close(), do not fail if already closed */
 		(void)_close(fae->fae_fildes);
 		break;
+#ifdef HAVE_CHDIR
+	case FAE_CHDIR:
+		/* Perform a chdir. */
+		if (chdir (fae->fae_dir) == -1)
+			return (errno);
+		break;
+#endif
+#ifdef HAVE_FCHDIR
+	case FAE_FCHDIR:
+		/* Perform a chdir. */
+		if (fchdir (fae->fae_dirfd) == -1)
+			return (errno);
+		break;
 	}
+#endif
 	return (0);
 }
 
@@ -254,6 +278,69 @@ process_file_actions(const posix_spawn_file_actions_t fa)
 	return (0);
 }
 
+#ifdef __CYGWIN__
+/* Cygwin's vfork does not follow BSD vfork semantics.  Rather it's equivalent
+   to fork.  While that's POSIX compliant, the below FreeBSD implementation
+   relying on BSD vfork semantics doesn't work as expected on Cygwin.  The
+   following Cygwin-specific code handles the synchronization FreeBSD gets
+   for free by using vfork. */
+
+extern int __posix_spawn_sem_create (void **semp);
+extern void __posix_spawn_sem_release (void *sem, int error);
+extern int __posix_spawn_sem_wait_and_close (void *sem, void *proc);
+extern int __posix_spawn_fork (void **proc);
+extern int __posix_spawn_execvpe (const char *path, char * const *argv,
+				  char *const *envp, void *sem,
+				  int use_env_path);
+
+
+static int
+do_posix_spawn(pid_t *pid, const char *path,
+	const posix_spawn_file_actions_t *fa,
+	const posix_spawnattr_t *sa,
+	char * const argv[], char * const envp[], int use_env_path)
+{
+	int error;
+	void *sem, *proc;
+	pid_t p;
+
+	error = __posix_spawn_sem_create(&sem);
+	if (error)
+		return error;
+
+	p = __posix_spawn_fork(&proc);
+	switch (p) {
+	case -1:
+		return (errno);
+	case 0:
+		if (sa != NULL) {
+			error = process_spawnattr(*sa);
+			if (error) {
+				__posix_spawn_sem_release(sem, error);
+				_exit(127);
+			}
+		}
+		if (fa != NULL) {
+			error = process_file_actions(*fa);
+			if (error) {
+				__posix_spawn_sem_release(sem, error);
+				_exit(127);
+			}
+		}
+		__posix_spawn_execvpe(path, argv,
+				      envp != NULL ? envp : *p_environ,
+				      sem, use_env_path);
+		_exit(127);
+	default:
+		error = __posix_spawn_sem_wait_and_close(sem, proc);
+		if (error != 0)
+			waitpid(p, NULL, WNOHANG);
+		else if (pid != NULL)
+			*pid = p;
+		return (error);
+	}
+}
+#else
 static int
 do_posix_spawn(pid_t *pid, const char *path,
 	const posix_spawn_file_actions_t *fa,
@@ -292,6 +379,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 		return (error);
 	}
 }
+#endif
 
 int
 posix_spawn (pid_t *pid,
@@ -343,8 +431,18 @@ posix_spawn_file_actions_destroy (posix_spawn_file_actions_t *fa)
 		STAILQ_REMOVE_HEAD(&(*fa)->fa_list, fae_list);
 
 		/* Deallocate file action entry */
-		if (fae->fae_action == FAE_OPEN)
+		switch (fae->fae_action) {
+		case FAE_OPEN:
 			free(fae->fae_path);
+			break;
+#ifdef HAVE_CHDIR
+		case FAE_CHDIR:
+			free(fae->fae_dir);
+			break;
+#endif
+		default:
+			break;
+		}
 		free(fae);
 	}
 
@@ -431,6 +529,62 @@ posix_spawn_file_actions_addclose (posix_spawn_file_actions_t *fa,
 	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
 	return (0);
 }
+
+#ifdef HAVE_CHDIR
+int
+posix_spawn_file_actions_addchdir_np (
+	posix_spawn_file_actions_t * __restrict fa,
+	const char * __restrict path)
+{
+	posix_spawn_file_actions_entry_t *fae;
+	int error;
+
+	/* Allocate object */
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	/* Set values and store in queue */
+	fae->fae_action = FAE_CHDIR;
+	fae->fae_dir = strdup(path);
+	if (fae->fae_dir == NULL) {
+		error = errno;
+		free(fae);
+		return (error);
+	}
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+#endif
+
+#ifdef HAVE_FCHDIR
+int
+posix_spawn_file_actions_addfchdir_np (
+	posix_spawn_file_actions_t * __restrict fa,
+	int fd)
+{
+	posix_spawn_file_actions_entry_t *fae;
+
+	/* POSIX proposal documents it as implemented in FreeBSD and Musl.
+	   Return EBADF if fd is negative.
+	   https://www.austingroupbugs.net/view.php?id=1208 */
+	if (fd < 0)
+		return EBADF;
+
+	/* Allocate object */
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	/* Set values and store in queue */
+	fae->fae_action = FAE_FCHDIR;
+	fae->fae_dirfd = fd;
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+#endif
 
 /*
  * Spawn attributes

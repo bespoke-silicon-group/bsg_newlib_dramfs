@@ -4,21 +4,384 @@
 
 <sect1 id="ov-new"><title>What's new and what changed in Cygwin</title>
 
-<sect2 id="ov-new2.12"><title>What's new and what changed in 2.12</title>
+<sect2 id="ov-new3.5"><title>What's new and what changed in 3.5</title>
 
 <itemizedlist mark="bullet">
 
 <listitem><para>
-Support for CLOCK_REALTIME_COARSE, CLOCK_MONOTONIC_COARSE,
-CLOCK_MONOTONIC_RAW, CLOCK_BOOTTIME clocks.
+Drop support for Windows 7, Windows 8, Server 2008 R2 and Server 2012.
 </para></listitem>
 
 <listitem><para>
-Support for case sensitive directories.  mkdir(2) automatically creates
-directories within the Cygwin installation dir as case sensitive
-now.</para>
+The console device gets accessible from other terminals such as other
+consoles and ptys. Thanks to this new feature, GNU screen and tmux now
+work in the console.
+</para></listitem>
 
-<para>This feature requires Windows 10 1803 or later and WSL installed!
+<listitem><para>
+newgrp(1) tool.
+</para></listitem>
+
+<listitem><para>
+cygcheck has new options searching for available packages in the
+cygwin distro, as well as getting extended info on available and
+installed packages.
+</para></listitem>
+
+<listitem><para>
+fnmatch(3) and glob(3) now support named character classes, equivalence
+class expressions, and collating symbols in the search pattern, i.e.,
+[:alnum:], [=a=], [.aa.].
+</para></listitem>
+
+<listitem><para>
+Introduce /dev/disk directory with various by-* subdirectories which
+provide symlinks to disk and partition raw devices:
+  <screen>
+  by-drive/DRIVE_LETTER ->  ../../sdXN
+  by-label/VOLUME_LABEL ->  ../../sdXN
+  by-id/BUSTYPE-[VENDOR_]PRODUCT_[SERIAL|0xHASH][-partN] -> ../../sdX[N]
+  by-partuuid/MBR_SERIAL-OFFSET -> ../../sdXN
+  by-partuuid/GPT_GUID -> ../../sdXN
+  by-uuid/VOLUME_SERIAL -> ../../sdXN
+  by-voluuid/MBR_SERIAL-OFFSET -> ../../sdXN
+  by-voluuid/VOLUME_GUID -> ../../sdXN
+  </screen>
+The subdirectories by-drive and by-voluuid are Cygwin specific.
+</para></listitem>
+
+<listitem><para>
+Introduce /proc/codesets and /proc/locales with information on supported
+codesets and locales for all interested parties.  Locale(1) opens these
+files and uses the info for printing locale info like any other process
+could do.
+</para></listitem>
+
+<listitem><para>
+Add support for GB18030 codeset.
+</para></listitem>
+
+<listitem><para>
+Add support for lseek flags SEEK_DATA and SEEK_HOLE, a GNU extension.
+</para></listitem>
+
+<listitem><para>
+New API calls: posix_spawn_file_actions_addchdir_np,
+posix_spawn_file_actions_addfchdir_np.
+</para></listitem>
+
+<listitem><para>
+New API calls: c8rtomb, c16rtomb, c32rtomb, mbrtoc8, mbrtoc16, mbrtoc32.
+</para></listitem>
+
+<listitem><para>
+New API call: fallocate (Linux-specific).
+</para></listitem>
+
+<listitem><para>
+posix_spawnp no longer falls back to starting the shell for unrecognized
+files as execvp.  For the reasoning, see
+https://www.austingroupbugs.net/view.php?id=1674
+</para></listitem>
+
+<listitem><para>
+FIFOs now also work over NFS.
+</para></listitem>
+
+<listitem><para>
+Enable automatic sparsifying of files on SSDs, independent of the
+"sparse" mount mode.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.4"><title>What's new and what changed in 3.4</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+Drop support for Vista and Server 2008.
+</para></listitem>
+
+<listitem><para>
+Drop support for 32 bit Windows and WOW64.
+</para></listitem>
+
+<listitem><para>
+Allow to run with full ASLR enabled and enable on Cygwin DLL by default.
+</para></listitem>
+
+<listitem><para>
+Remove any special handling for the .com filename suffix. It has to
+be used always explicitely.
+</para></listitem>
+
+<listitem><para>
+Add code to handle setrlimit(RLIMIT_AS).
+</para></listitem>
+
+<listitem><para>
+- Add code to handle signal masks in /proc/&lt;PID&gt;/status.
+</para></listitem>
+
+<listitem><para>
+The CYGWIN=pipe_byte option is now set by default, so that pipes are
+opened in byte mode rather than message mode.
+</para></listitem>
+
+<listitem><para>
+Handle UDP_SEGMENT and UDP_GRO socket options.
+</para></listitem>
+
+<listitem><para>
+The stdio input functions no longer try again to read after EOF.
+</para></listitem>
+
+<listitem><para>
+The default values of FD_SETSIZE and NOFILE are now 1024 and 3200,
+respectively.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.3"><title>What's new and what changed in 3.3</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+An IP-sampling profiler named 'profiler' has been added.  It can be used
+to profile any Cygwin program along with any DLLs loaded.
+</para></listitem>
+
+<listitem><para>
+A new tool 'gmondump' has been added.  It can dump the raw information
+of any "gmon.out" file created by profiler, ssp, or use of the gcc/g++
+option '-pg'.  (Continue using gprof to get symbolic profile displays.)
+</para></listitem>
+
+<listitem><para>
+New GNU-specific APIs, slated to become part of the next POSIX standard:
+pthread_cond_clockwait, pthread_mutex_clocklock, pthread_rwlock_clockrdlock,
+pthread_rwlock_clockwrlock, sem_clockwait.
+</para></listitem>
+
+<listitem><para>
+New Solaris-specific APIs, slated to become part of the next POSIX standard:
+sig2str, str2sig.
+</para></listitem>
+
+<listitem><para>
+The speed argument to cfsetspeed(3) can now be a numerical baud rate
+rather than a Bnnn constant, as on Linux.
+</para></listitem>
+
+<listitem><para>
+The internal implementation of pipes has been overhauled; this should
+result in improved performance.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.2"><title>What's new and what changed in 3.2</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+Revamped pseudo console support.  Conditionally activating it only when
+a non-cygwin application is run.
+</para></listitem>
+
+<listitem><para>
+New C11 threads API: call_once, cnd_broadcast, cnd_destroy, cnd_init,
+cnd_signal, cnd_timedwait, cnd_wait, mtx_destroy, mtx_init, mtx_lock,
+mtx_timedlock, mtx_trylock, mtx_unlock, thrd_create, thrd_current,
+thrd_detach, thrd_equal, thrd_exit, thrd_join, thrd_sleep, thrd_yield,
+tss_create, tss_delete, tss_get, tss_set.
+</para></listitem>
+
+<listitem><para>
+In cygwin console, new thread which handles special keys/signals such
+as Ctrl-Z (VSUSP), Ctrl-\ (VQUIT), Ctrl-S (VSTOP), Ctrl-Q (VSTART) and
+SIGWINCH has been introduced. There have been a long standing issue
+that these keys/signals are handled only when app calls read() or
+select(). Now, these work even if app does not call read() or select().
+</para></listitem>
+
+<listitem><para>
+Allow ~5000 child processes per process on 64 bit, ~1200 child processes
+per process on 32 bit.  So far, only 256 child processes per process were
+supported.
+</para></listitem>
+
+<listitem><para>
+A few FAQ updates.
+</para></listitem>
+
+<listitem><para>
+Have tmpfile(3) make use of Win32 FILE_ATTRIBUTE_TEMPORARY via open(2)
+flag O_TMPFILE.
+</para></listitem>
+
+<listitem><para>
+Utilize Windows 10 1809 FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE flag
+to allow simpler unlink of files with DOS readonly flags set.
+</para></listitem>
+
+<listitem><para>
+fchmodat(2) now has limited support for the AT_SYMLINK_NOFOLLOW flag.
+</para></listitem>
+
+<listitem><para>
+getdtablesize(3), sysconf(_SC_OPEN_MAX), and getrlimit(RLIMIT_NOFILE)
+now return the true limit on the number of open descriptors, 3200.
+Previously they returned the current size of Cygwin's internal file
+descriptor table, which can grow dynamically.
+</para></listitem>
+
+<listitem><para>
+Cygwin now recognizes native Windows AF_UNIX sockets (as regular
+files, not as socket files).  This allows tools like 'ls' and 'rm' to
+work.
+</para></listitem>
+
+<listitem><para>
+facl(2) now fails with EBADF on a file opened with O_PATH.
+</para></listitem>
+
+<listitem><para>
+Allow to start Windows Store executables via their "app execution
+aliases".  Handle these aliases (which are special reparse points)
+as symlinks to the actual executables.
+</para></listitem>
+
+<listitem><para>
+The speed argument to cfsetspeed(3) can now be a numerical baud rate
+rather than a Bnnn constant, as on Linux.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.1"><title>What's new and what changed in 3.1</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+FIFOs can now be opened multiple times for writing.
+</para></listitem>
+
+<listitem><para>
+Add 24 bit color support using xterm compatibility mode in Windows 10
+1703 or later.  Add fake 24 bit color support for legacy console, which
+uses the nearest color from 16 system colors.
+</para></listitem>
+
+<listitem><para>
+Support pseudo console in PTY. Pseudo console is a new feature
+in Windows 10 1809, which provides console APIs on virtual
+terminal. With this patch, native console applications can work
+in PTYs such as mintty, ssh, gnu screen or tmux.
+</para></listitem>
+
+<listitem><para>
+Eliminate a header file name collision with &lt;X11/XLocale.h&gt; on
+case insensitive filesystems by reverting &lt;xlocale.h&gt; back to
+&lt;sys/_locale.h&gt;.
+</para></listitem>
+
+<listitem><para>
+If a SA_SIGINFO signal handler changes the ucontext_t pointed to by the
+third parameter, follow it after returning from the handler.
+</para></listitem>
+
+<listitem><para>
+New APIs: sched_getaffinity, sched_setaffinity, pthread_getaffinity_np,
+pthread_setaffinity_np, plus CPU_SET macros.
+</para></listitem>
+
+<listitem><para>
+New APIs: dbm_clearerr, dbm_close, dbm_delete, dbm_dirfno, dbm_error,
+dbm_fetch, dbm_firstkey, dbm_nextkey, dbm_open, dbm_store.
+</para></listitem>
+
+<listitem><para>
+Allow times(2) to have a NULL argument, as on Linux.
+</para></listitem>
+
+<listitem><para>
+Improve /proc/cpuinfo output and align more closely with Linux.
+</para></listitem>
+
+<listitem><para>
+Allow symlinks to be opened with O_PATH | O_NOFOLLOW.
+</para></listitem>
+
+<listitem><para>
+Allow the pathname argument to readlinkat(2) to be an empty string,
+provided the dirfd argument refers to a symlink opened with O_PATH |
+O_NOFOLLOW.  The readlinkat call then operates on that symlink.
+</para></listitem>
+
+<listitem><para>
+Support the Linux-specific AT_EMPTY_PATH flag for fchownat(2) and
+fstatat(2).
+</para></listitem>
+
+<listitem><para>
+Allow AF_LOCAL sockets to be opened with O_PATH.  If that flag is not
+set, or if an attempt is made to open a different type of socket, the
+errno is now EOPNOTSUPP instead of ENXIO.
+</para></listitem>
+
+<listitem><para>
+The new locale modifier @cjksingle allows enforcing of single-width
+character property for usually double-widthed characters.  This will
+be supported by upcoming mintty releases.  For the reasoning, see
+https://gitlab.freedesktop.org/terminal-wg/specifications/issues/9.
+</para></listitem>
+
+<listitem><para>
+Support WSL symlinks.  Create those by default now.
+</para></listitem>
+
+<listitem><para>
+FIFOs can now be opened multiple times for reading.
+</para></listitem>
+
+<listitem><para>
+Support more IPPROTO_TCP socket options: TCP_FASTOPEN, TCP_KEEPIDLE,
+TCP_KEEPCNT, TCP_KEEPINTVL, TCP_QUICKACK, TCP_USER_TIMEOUT.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.0"><title>What's new and what changed in 3.0</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+Updated era and message locale data, in particular add era data for
+the new Tennō.
+</para></listitem>
+
+<listitem><para>
+Support for CLOCK_REALTIME_COARSE, CLOCK_MONOTONIC_COARSE,
+CLOCK_MONOTONIC_RAW, CLOCK_BOOTTIME, CLOCK_REALTIME_ALARM,
+CLOCK_BOOTTIME_ALARM clocks.
+</para></listitem>
+
+<listitem><para>
+Support for case sensitive directories via chattr(1).  This feature requires
+Windows 10 1803 or later and WSL installed.
 </para></listitem>
 
 <listitem><para>
@@ -38,6 +401,24 @@ Support for exFAT.
 </para></listitem>
 
 <listitem><para>
+Support Linux-specific open(2) flag O_PATH.
+</para></listitem>
+
+<listitem><para>
+Support Linux-specific linkat(2) flag AT_EMPTY_PATH.
+</para></listitem>
+
+<listitem><para>
+Support overrun counter for posix timers (via timer_getoverrun() or
+siginfo_t::si_overrun).
+</para></listitem>
+
+<listitem><para>
+New APIs: secure_getenv, signalfd, timerfd_create, timerfd_gettime,
+timerfd_settime, timer_getoverrun.
+</para></listitem>
+
+<listitem><para>
 clock_nanosleep, pthread_condattr_setclock and timer_create now support
 all clocks, except CLOCK_PROCESS_CPUTIME_ID and CLOCK_THREAD_CPUTIME_ID.
 </para></listitem>
@@ -50,6 +431,55 @@ clock_setres is a no-op now.
 Use the new POSIX unlink semantics on NTFS starting with Windows 10
 1709.  Deleting an in-use file now actually removes the file, rather
 than moving it to the recycler bin.
+</para></listitem>
+
+<listitem><para>
+Use the new POSIX rename semantics on NTFS starting with Windows 10
+1809.  Renaming a file to another in-use file now actually removes the
+other file, rather than moving it to the recycler bin.
+</para></listitem>
+
+<listitem><para>
+open(..., O_TMPFILE) now moves the file to the trash bin immediately,
+to free the parent directory.
+</para></listitem>
+
+<listitem><para>
+Wctype functions updated to Unicode 11.0.
+</para></listitem>
+
+<listitem><para>
+Remove matherr, and SVID and X/Open math library configurations.
+Default math library configuration is now IEEE.
+</para></listitem>
+
+<listitem><para>
+Improve uname(2) for newly built applications.
+</para></listitem>
+
+<listitem><para>
+Kerberos/MSV1_0 S4U authentication replaces two old methods:
+Creating a token from scratch and Cygwin LSA authentication package.
+</para></listitem>
+
+<listitem><para>
+Cygwin PIDs have been decoupled from Windows PID.  Cygwin PIDs are now
+incrementally dealt in the range from 2 up to 65535, POSIX-like.
+Native Windows processes not started by Cygwin processes are mapped
+into the range beyond 65535.
+</para></listitem>
+
+<listitem><para>
+fork(2) now is able to recover from when an in-use executable/dll is
+removed or replaced during process runtime.  This feature is disabled by
+default and limited to exes/dlls on the same NTFS partition as the Cygwin
+installation.  For more information and how to enable, please refer to
+<xref linkend="ov-hi-process"></xref>.
+</para></listitem>
+
+<listitem><para>
+Improve /proc/&lt;PID&gt;/cmdline and /proc/&lt;PID&gt;/stat handling to allow
+all processes access to basic process information of foreign processes.
 </para></listitem>
 
 </itemizedlist>

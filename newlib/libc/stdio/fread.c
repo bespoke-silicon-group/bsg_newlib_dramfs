@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -158,7 +158,11 @@ _fread_r (struct _reent * ptr,
   CHECK_INIT(ptr, fp);
 
   _newlib_flockfile_start (fp);
-  ORIENT (fp, -1);
+  if (ORIENT (fp, -1) != -1)
+    {
+      count = 0;
+      goto ret;
+    }
   if (fp->_r < 0)
     fp->_r = 0;
   total = resid;
@@ -252,6 +256,7 @@ _fread_r (struct _reent * ptr,
       return crlf_r(ptr, fp, buf, total, 0) / size;
     }
 #endif
+ret:
   _newlib_flockfile_end (fp);
   return count;
 }

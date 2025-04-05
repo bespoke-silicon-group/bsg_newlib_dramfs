@@ -20,15 +20,14 @@ details. */
 #include <malloc.h>
 #include <wchar.h>
 #include "path.h"
-#include "../cygwin/include/cygwin/version.h"
-#include "../cygwin/include/sys/mount.h"
+#include <cygwin/version.h>
+#include <cygwin/bits.h>
+#include <sys/mount.h>
 #define _NOMNTENT_MACROS
-#include "../cygwin/include/mntent.h"
-#include "testsuite.h"
+#include <mntent.h>
 #ifdef FSTAB_ONLY
 #include <sys/cygwin.h>
 #endif
-#include "loadlib.h"
 
 #ifndef FSTAB_ONLY
 /* Used when treating / and \ as equivalent. */
@@ -254,14 +253,8 @@ readlink (HANDLE fh, char *path, size_t maxlen)
 }
 #endif /* !FSTAB_ONLY */
 
-#ifndef TESTSUITE
 mnt_t mount_table[255];
 int max_mount_entry;
-#else
-#  define TESTSUITE_MOUNT_TABLE
-#  include "testsuite.h"
-#  undef TESTSUITE_MOUNT_TABLE
-#endif
 
 inline void
 unconvert_slashes (char* name)
@@ -270,9 +263,6 @@ unconvert_slashes (char* name)
     *name++ = '\\';
 }
 
-/* These functions aren't called when defined(TESTSUITE) which results
-   in a compiler warning.  */
-#ifndef TESTSUITE
 inline char *
 skip_ws (char *in)
 {
@@ -292,7 +282,7 @@ find_ws (char *in)
 inline char *
 conv_fstab_spaces (char *field)
 {
-  register char *sp = field;
+  char *sp = field;
   while ((sp = strstr (sp, "\\040")) != NULL)
     {
       *sp++ = ' ';
@@ -311,7 +301,7 @@ static struct opt
 {
   {"acl", MOUNT_NOACL, 1},
   {"auto", 0, 0},
-  {"binary", MOUNT_BINARY, 0},
+  {"binary", MOUNT_TEXT, 1},
   {"cygexec", MOUNT_CYGWIN_EXEC, 0},
   {"dos", MOUNT_DOS, 0},
   {"exec", MOUNT_EXEC, 0},
@@ -323,7 +313,7 @@ static struct opt
   {"override", MOUNT_OVERRIDE, 0},
   {"posix=0", MOUNT_NOPOSIX, 0},
   {"posix=1", MOUNT_NOPOSIX, 1},
-  {"text", MOUNT_BINARY, 1},
+  {"text", MOUNT_TEXT, 0},
   {"user", MOUNT_SYSTEM, 1}
 };
 
@@ -486,27 +476,26 @@ from_fstab (bool user, PWCHAR path, PWCHAR path_end)
 	*(native_path += 2) = '\\';
       m->posix = strdup ("/");
       m->native = strdup (native_path);
-      m->flags = MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_IMMUTABLE
-		 | MOUNT_AUTOMATIC;
+      m->flags = MOUNT_SYSTEM | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC;
       ++m;
       /* Create default /usr/bin and /usr/lib entries. */
       char *trail = strchr (native_path, '\0');
       strcpy (trail, "\\bin");
       m->posix = strdup ("/usr/bin");
       m->native = strdup (native_path);
-      m->flags = MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC;
+      m->flags = MOUNT_SYSTEM | MOUNT_AUTOMATIC;
       ++m;
       strcpy (trail, "\\lib");
       m->posix = strdup ("/usr/lib");
       m->native = strdup (native_path);
-      m->flags = MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC;
+      m->flags = MOUNT_SYSTEM | MOUNT_AUTOMATIC;
       ++m;
       /* Create a default cygdrive entry.  Note that this is a user entry.
 	 This allows to override it with mount, unless the sysadmin created
 	 a cygdrive entry in /etc/fstab. */
       m->posix = strdup (CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX);
       m->native = strdup ("cygdrive prefix");
-      m->flags = MOUNT_BINARY | MOUNT_CYGDRIVE;
+      m->flags = MOUNT_CYGDRIVE;
       ++m;
       max_mount_entry = m - mount_table;
     }
@@ -555,10 +544,11 @@ from_fstab (bool user, PWCHAR path, PWCHAR path_end)
   CloseHandle (h);
 }
 #endif /* !FSTAB_ONLY */
-#endif /* !TESTSUITE */
 
 #ifndef FSTAB_ONLY
-
+#ifdef TESTSUITE
+#define read_mounts testsuite_read_mounts
+#else
 static int
 mnt_sort (const void *a, const void *b)
 {
@@ -580,9 +570,6 @@ extern "C" WCHAR cygwin_dll_path[];
 static void
 read_mounts ()
 {
-/* If TESTSUITE is defined, bypass this whole function as a harness
-   mount table will be provided.  */
-#ifndef TESTSUITE
   HKEY setup_key;
   LONG ret;
   DWORD len;
@@ -654,8 +641,8 @@ read_mounts ()
   from_fstab (false, path, path_end);
   from_fstab (true, path, path_end);
   qsort (mount_table, max_mount_entry, sizeof (mnt_t), mnt_sort);
-#endif /* !defined(TESTSUITE) */
 }
+#endif
 
 /* Return non-zero if PATH1 is a prefix of PATH2.
    Both are assumed to be of the same path style and / vs \ usage.
@@ -759,6 +746,11 @@ concat (const char *s, ...)
   return vconcat (s, v);
 }
 
+#ifdef TESTSUITE
+#undef GetCurrentDirectory
+#define GetCurrentDirectory testsuite_getcwd
+#endif
+
 /* This is a helper function for when vcygpath is passed what appears
    to be a relative POSIX path.  We take a Win32 CWD (either as specified
    in 'cwd' or as retrieved with GetCurrentDirectory() if 'cwd' is NULL)
@@ -826,6 +818,7 @@ vcygpath (const char *cwd, const char *s, va_list v)
 
   if (!max_mount_entry)
     read_mounts ();
+
   char *path;
   if (s[0] == '.' && isslash (s[1]))
     s += 2;
@@ -912,8 +905,10 @@ extern "C" FILE *
 setmntent (const char *, const char *)
 {
   m = mount_table;
+
   if (!max_mount_entry)
     read_mounts ();
+
   return NULL;
 }
 
@@ -934,7 +929,7 @@ getmntent (FILE *)
   strcpy (mnt.mnt_type,
 	  (char *) ((m->flags & MOUNT_SYSTEM) ? "system" : "user"));
 
-  if (!(m->flags & MOUNT_BINARY))
+  if (m->flags & MOUNT_TEXT)
     strcpy (mnt.mnt_opts, (char *) "text");
   else
     strcpy (mnt.mnt_opts, (char *) "binary");

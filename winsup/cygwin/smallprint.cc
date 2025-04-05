@@ -56,33 +56,27 @@ static const char hex_str_lower[] = "0123456789abcdef";
 
 class tmpbuf
 {
-  static WCHAR buf[NT_MAX_PATH];
-  static muto lock;
-  bool locked;
+  PWCHAR buf;
+
 public:
   operator WCHAR * ()
   {
-    if (!locked)
-      {
-	lock.init ("smallprint_buf")->acquire ();
-	locked = true;
-      }
+    if (!buf)
+      buf = (PWCHAR) HeapAlloc (GetProcessHeap (), 0,
+				NT_MAX_PATH * sizeof (WCHAR));
     return buf;
   }
-  operator char * () {return (char *) ((WCHAR *) *this);}
+  operator char * ()  { return (char *) ((WCHAR *) *this); }
 
-  tmpbuf (): locked (false) {};
+  tmpbuf () : buf (NULL) {}
   ~tmpbuf ()
   {
-    if (locked)
-      lock.release ();
+    if (buf)
+      HeapFree (GetProcessHeap (), 0, buf);
   }
 };
 
-WCHAR tmpbuf::buf[NT_MAX_PATH];
-NO_COPY muto tmpbuf::lock;
-
-static char __fastcall *
+static char *
 __rn (char *dst, int base, int dosign, long long val, int len, int pad, unsigned long long mask)
 {
   /* longest number is ULLONG_MAX, 18446744073709551615, 20 digits */
@@ -130,7 +124,7 @@ __rn (char *dst, int base, int dosign, long long val, int len, int pad, unsigned
   return dst;
 }
 
-int
+extern "C" int
 __small_vsprintf (char *dst, const char *fmt, va_list ap)
 {
   tmpbuf tmp;
@@ -180,7 +174,7 @@ __small_vsprintf (char *dst, const char *fmt, va_list ap)
 		      pad = '0';
 		      continue;
 		    }
-		  /*FALLTHRU*/
+		  fallthrough;
 		case '1' ... '9':
 		  len = len * 10 + (c - '0');
 		  continue;
@@ -219,49 +213,39 @@ __small_vsprintf (char *dst, const char *fmt, va_list ap)
 		  break;
 		case 'R':
 		  {
-#ifdef __x86_64__
 		    if (l_opt)
 		      Rval = va_arg (ap, int64_t);
 		    else
-#endif
 		      Rval = va_arg (ap, int32_t);
 		    dst = __rn (dst, 10, addsign, Rval, len, pad, LMASK);
 		  }
 		  break;
 		case 'd':
 		  base = 10;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'u':
 		  base = 10;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'o':
 		  base = 8;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'y':
 		  *dst++ = '0';
 		  *dst++ = 'x';
-		  /*FALLTHRU*/
+		  fallthrough;
 		case 'x':
 		  base = 16;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 gen_decimal:
 		  dst = rnarg (dst, h_opt * base, addsign, len, pad);
 		  break;
@@ -279,7 +263,7 @@ gen_decimal:
 		case 'Y':
 		  *dst++ = '0';
 		  *dst++ = 'x';
-		  /*FALLTHRU*/
+		  fallthrough;
 		case 'X':
 		  base = 16;
 		  addsign = 0;
@@ -289,17 +273,13 @@ gen_decimalLL:
 		case 'p':
 		  *dst++ = '0';
 		  *dst++ = 'x';
-#ifdef __x86_64__
 		  dst = rnargLL (dst, h_opt * 16, 0, len, pad);
-#else
-		  dst = rnarg (dst, h_opt * 16, 0, len, pad);
-#endif
 		  break;
 		case '.':
 		  n = strtol (fmt, (char **) &fmt, 10);
 		  if (*fmt++ != 's')
 		    goto endfor;
-		  /*FALLTHRU*/
+		  fallthrough;
 		case 's':
 		  s = va_arg (ap, char *);
 		  if (s == NULL)
@@ -373,7 +353,7 @@ gen_decimalLL:
   return dst - orig;
 }
 
-int
+extern "C" int
 __small_sprintf (char *dst, const char *fmt, ...)
 {
   int r;
@@ -439,7 +419,7 @@ console_printf (const char *fmt, ...)
 #define wrnarg(dst, base, dosign, len, pad) __wrn ((dst), (base), (dosign), va_arg (ap, long), len, pad, LMASK)
 #define wrnargLL(dst, base, dosign, len, pad) __wrn ((dst), (base), (dosign), va_arg (ap, unsigned long long), len, pad, LLMASK)
 
-static PWCHAR __fastcall
+static PWCHAR
 __wrn (PWCHAR dst, int base, int dosign, long long val, int len, int pad, unsigned long long mask)
 {
   /* longest number is ULLONG_MAX, 18446744073709551615, 20 digits */
@@ -503,9 +483,7 @@ __small_vswprintf (PWCHAR dst, const WCHAR *fmt, va_list ap)
   while (*fmt)
     {
       unsigned int n = 0x7fff;
-#ifdef __x86_64__
       bool l_opt = false;
-#endif
       /* set to -1 on '_', indicates upper (1)/lower(-1) case */
       int h_opt = 1;
       if (*fmt != L'%')
@@ -538,14 +516,12 @@ __small_vswprintf (PWCHAR dst, const WCHAR *fmt, va_list ap)
 		      pad = L'0';
 		      continue;
 		    }
-		  /*FALLTHRU*/
+		  fallthrough;
 		case L'1' ... L'9':
 		  len = len * 10 + (c - L'0');
 		  continue;
 		case L'l':
-#ifdef __x86_64__
 		  l_opt = true;
-#endif
 		  continue;
 		case '_':
 		  h_opt = -1;
@@ -560,49 +536,39 @@ __small_vswprintf (PWCHAR dst, const WCHAR *fmt, va_list ap)
 		  break;
 		case 'R':
 		  {
-#ifdef __x86_64__
 		    if (l_opt)
 		      Rval = va_arg (ap, int64_t);
 		    else
-#endif
 		      Rval = va_arg (ap, int32_t);
 		    dst = __wrn (dst, 10, addsign, Rval, len, pad, LMASK);
 		  }
 		  break;
 		case L'd':
 		  base = 10;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'u':
 		  base = 10;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'o':
 		  base = 8;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 		  goto gen_decimal;
 		case 'y':
 		  *dst++ = '0';
 		  *dst++ = 'x';
-		  /*FALLTHRU*/
+		  fallthrough;
 		case 'x':
 		  base = 16;
 		  addsign = 0;
-#ifdef __x86_64__
 		  if (l_opt)
 		    goto gen_decimalLL;
-#endif
 gen_decimal:
 		  dst = wrnarg (dst, h_opt * base, addsign, len, pad);
 		  break;
@@ -620,7 +586,7 @@ gen_decimal:
 		case 'Y':
 		  *dst++ = '0';
 		  *dst++ = 'x';
-		  /*FALLTHRU*/
+		  fallthrough;
 		case 'X':
 		  base = 16;
 		  addsign = 0;
@@ -630,11 +596,7 @@ gen_decimalLL:
 		case L'p':
 		  *dst++ = L'0';
 		  *dst++ = L'x';
-#ifdef __x86_64__
 		  dst = wrnargLL (dst, h_opt * 16, 0, len, pad);
-#else
-		  dst = wrnarg (dst, h_opt * 16, 0, len, pad);
-#endif
 		  break;
 		case L'P':
 		  RtlInitUnicodeString (us = &uw, global_progname);
@@ -643,7 +605,7 @@ gen_decimalLL:
 		  n = wcstoul (fmt, (wchar_t **) &fmt, 10);
 		  if (*fmt++ != L's')
 		    goto endfor;
-		  /*FALLTHRU*/
+		  fallthrough;
 		case L's':
 		  s = va_arg (ap, char *);
 		  if (s == NULL)
@@ -676,7 +638,7 @@ gen_decimalLL:
 	    }
 	}
     }
-  if (Rval < 0)     
+  if (Rval < 0)
     {
       dst = wcpcpy (dst, L", errno ");
       dst = __wrn (dst, 10, false, get_errno (), 0, 0, LMASK);

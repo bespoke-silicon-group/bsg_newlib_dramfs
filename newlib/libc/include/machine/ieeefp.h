@@ -87,6 +87,16 @@
 #  define __IEEE_BYTES_LITTLE_ENDIAN
 # endif
 #endif
+#ifndef __SOFTFP__
+# define _SUPPORTS_ERREXCEPT
+#endif
+/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
+   (if compiling with +fp16 support) so it can't be used by math.h to
+   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
+   other than 0, 1, 2 the definition of float_t and double_t is
+   implementation-defined.  */
+#define __DOUBLE_TYPE double
+#define __FLOAT_TYPE float
 #endif
 
 #if defined (__aarch64__)
@@ -96,6 +106,16 @@
 #define __IEEE_BIG_ENDIAN
 #endif
 #define __OBSOLETE_MATH_DEFAULT 0
+#ifdef __ARM_FP
+# define _SUPPORTS_ERREXCEPT
+#endif
+/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
+   (if compiling with +fp16 support) so it can't be used by math.h to
+   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
+   other than 0, 1, 2 the definition of float_t and double_t is
+   implementation-defined.  */
+#define __DOUBLE_TYPE double
+#define __FLOAT_TYPE float
 #endif
 
 #ifdef __epiphany__
@@ -189,10 +209,23 @@
 
 #ifdef __i386__
 #define __IEEE_LITTLE_ENDIAN
+# define _SUPPORTS_ERREXCEPT
 #endif
 
 #ifdef __riscv
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#define __IEEE_BIG_ENDIAN
+#else
 #define __IEEE_LITTLE_ENDIAN
+#endif
+#if defined(__riscv_flen) || defined (__riscv_zfinx)
+# define _SUPPORTS_ERREXCEPT
+#endif
+#if (__riscv_flen == 64) || defined (__riscv_zdinx)
+# define __OBSOLETE_MATH_DEFAULT 0
+#else
+# define __OBSOLETE_MATH_DEFAULT 1
+#endif
 #endif
 
 #ifdef __i960__
@@ -308,6 +341,14 @@
 #define __IEEE_LITTLE_ENDIAN
 #endif
 
+#ifdef __CSKY__
+#ifdef __CSKYBE__
+#define __IEEE_BIG_ENDIAN
+#else
+#define __IEEE_LITTLE_ENDIAN
+#endif
+#endif
+
 #ifdef __fr30__
 #define __IEEE_BIG_ENDIAN
 #endif
@@ -386,6 +427,7 @@
 
 #ifdef __x86_64__
 #define __IEEE_LITTLE_ENDIAN
+# define _SUPPORTS_ERREXCEPT
 #endif
 
 #ifdef __mep__
@@ -407,6 +449,10 @@
 #ifdef __MSP430__
 #define __IEEE_LITTLE_ENDIAN
 #define __SMALL_BITFIELDS	/* 16 Bit INT */
+#endif
+
+#ifdef __PRU__
+#define __IEEE_LITTLE_ENDIAN
 #endif
 
 #ifdef __RL78__
@@ -449,6 +495,18 @@
 #endif
 
 #ifdef __VISIUM__
+#define __IEEE_BIG_ENDIAN
+#endif
+
+#ifdef __AMDGCN__
+#define __IEEE_LITTLE_ENDIAN
+#endif
+
+#ifdef __XTENSA_EL__
+#define __IEEE_LITTLE_ENDIAN
+#endif
+
+#ifdef __XTENSA_EB__
 #define __IEEE_BIG_ENDIAN
 #endif
 

@@ -90,7 +90,7 @@ strstr (const char *hs, const char *ne)
 
 # define RETURN_TYPE char *
 # define AVAILABLE(h, h_l, j, n_l) (((j) <= (h_l) - (n_l)) \
-   || ((h_l) += strnlen ((h) + (h_l), (n_l) | 2048), ((j) <= (h_l) - (n_l))))
+   || ((h_l) += strnlen ((const char *) (h) + (h_l), (n_l) | 2048), ((j) <= (h_l) - (n_l))))
 
 # include "str-two-way.h"
 
@@ -102,7 +102,8 @@ strstr2 (const unsigned char *hs, const unsigned char *ne)
 {
   uint32_t h1 = (ne[0] << 16) | ne[1];
   uint32_t h2 = 0;
-  for (int c = hs[0]; h1 != h2 && c != 0; c = *++hs)
+  int c;
+  for (c = hs[0]; h1 != h2 && c != 0; c = *++hs)
       h2 = (h2 << 16) | c;
   return h1 == h2 ? (char *)hs - 2 : NULL;
 }
@@ -112,7 +113,8 @@ strstr3 (const unsigned char *hs, const unsigned char *ne)
 {
   uint32_t h1 = (ne[0] << 24) | (ne[1] << 16) | (ne[2] << 8);
   uint32_t h2 = 0;
-  for (int c = hs[0]; h1 != h2 && c != 0; c = *++hs)
+  int c;
+  for (c = hs[0]; h1 != h2 && c != 0; c = *++hs)
       h2 = (h2 | c) << 8;
   return h1 == h2 ? (char *)hs - 3 : NULL;
 }
@@ -122,7 +124,8 @@ strstr4 (const unsigned char *hs, const unsigned char *ne)
 {
   uint32_t h1 = (ne[0] << 24) | (ne[1] << 16) | (ne[2] << 8) | ne[3];
   uint32_t h2 = 0;
-  for (int c = hs[0]; c != 0 && h1 != h2; c = *++hs)
+  int c;
+  for (c = hs[0]; c != 0 && h1 != h2; c = *++hs)
     h2 = (h2 << 8) | c;
   return h1 == h2 ? (char *)hs - 4 : NULL;
 }
@@ -142,12 +145,13 @@ strstr (const char *haystack, const char *needle)
 {
   const unsigned char *hs = (const unsigned char *) haystack;
   const unsigned char *ne = (const unsigned char *) needle;
+  int i;
 
   /* Handle short needle special cases first.  */
   if (ne[0] == '\0')
     return (char *) hs;
   if (ne[1] == '\0')
-    return (char*)strchr (hs, ne[0]);
+    return (char*)strchr ((const char *) hs, ne[0]);
   if (ne[2] == '\0')
     return strstr2 (hs, ne);
   if (ne[3] == '\0')
@@ -155,8 +159,8 @@ strstr (const char *haystack, const char *needle)
   if (ne[4] == '\0')
     return strstr4 (hs, ne);
 
-  size_t ne_len = strlen (ne);
-  size_t hs_len = strnlen (hs, ne_len | 512);
+  size_t ne_len = strlen ((const char *) ne);
+  size_t hs_len = strnlen ((const char *) hs, ne_len | 512);
 
   /* Ensure haystack length is >= needle length.  */
   if (hs_len < ne_len)
@@ -170,7 +174,7 @@ strstr (const char *haystack, const char *needle)
 
       /* Initialize bad character shift hash table.  */
       memset (shift, ne_len + 1, sizeof (shift));
-      for (int i = 0; i < ne_len; i++)
+      for (i = 0; i < ne_len; i++)
 	shift[ne[i] % sizeof (shift)] = ne_len - i;
 
       do
@@ -187,7 +191,7 @@ strstr (const char *haystack, const char *needle)
 	    }
 	  if (end[ne_len] == 0)
 	    return NULL;
-	  end += strnlen (end + ne_len, 2048);
+	  end += strnlen ((const char *) (end + ne_len), 2048);
 	}
       while (hs <= end);
 

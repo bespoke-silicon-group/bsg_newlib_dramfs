@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +32,10 @@
 
 #ifndef _NETINET_UDP_H
 #define _NETINET_UDP_H
+
+#define UDP_SEGMENT	 2	/* WinSock UDP_SEND_MSG_SIZE */
+#define UDP_GRO		 3	/* WinSock UDP_RECV_MAX_COALESCED_SIZE,
+				   also == UDP_COALESCED_INFO */
 
 /*
  * Udp protocol header.

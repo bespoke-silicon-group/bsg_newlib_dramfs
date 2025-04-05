@@ -22,15 +22,6 @@ details. */
 #include "clock.h"
 
 static long
-get_open_max (int in)
-{
-  long max = getdtablesize ();
-  if (max < OPEN_MAX)
-    max = OPEN_MAX;
-  return max;
-}
-
-static long
 get_page_size (int in)
 {
   return wincap.allocation_granularity ();
@@ -51,28 +42,6 @@ __nt_query_system (PSYSTEM_BASIC_INFORMATION psbi)
 static long
 get_nproc_values (int in)
 {
-  if (!wincap.has_processor_groups ())	/* Pre Windows 7 */
-    {
-      SYSTEM_BASIC_INFORMATION sbi;
-
-      if (!__nt_query_system (&sbi))
-	return -1;
-      switch (in)
-	{
-	case _SC_NPROCESSORS_CONF:
-	  return sbi.NumberProcessors;
-	case _SC_NPROCESSORS_ONLN:
-	  {
-	    int i = 0;
-	    do
-	     if (sbi.ActiveProcessors & 1)
-	       i++;
-	    while (sbi.ActiveProcessors >>= 1);
-	    return i;
-	  }
-	}
-    }
-
   tmp_pathbuf tp;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX lpi, plpi;
   DWORD lpi_size = NT_MAX_PATH;
@@ -341,9 +310,11 @@ get_cpu_cache_intel_cpuid4 (int in)
 	case _SC_LEVEL1_ICACHE_ASSOC:
 	  if (cur_level == 1 && cache_type == 2)
 	    return assoc;
+	  break;
 	case _SC_LEVEL1_ICACHE_LINESIZE:
 	  if (cur_level == 1 && cache_type == 2)
 	    return linesize;
+	  break;
 	case _SC_LEVEL1_DCACHE_SIZE:
 	  if (cur_level == 1 && cache_type == 1)
 	    ret += assoc * part * linesize * sets;
@@ -351,9 +322,11 @@ get_cpu_cache_intel_cpuid4 (int in)
 	case _SC_LEVEL1_DCACHE_ASSOC:
 	  if (cur_level == 1 && cache_type == 1)
 	    return assoc;
+	  break;
 	case _SC_LEVEL1_DCACHE_LINESIZE:
 	  if (cur_level == 1 && cache_type == 1)
 	    return linesize;
+	  break;
 	case _SC_LEVEL2_CACHE_SIZE:
 	  if (cur_level == 2)
 	    ret += assoc * part * linesize * sets;
@@ -361,9 +334,11 @@ get_cpu_cache_intel_cpuid4 (int in)
 	case _SC_LEVEL2_CACHE_ASSOC:
 	  if (cur_level == 2)
 	    return assoc;
+	  break;
 	case _SC_LEVEL2_CACHE_LINESIZE:
 	  if (cur_level == 2)
 	    return linesize;
+	  break;
 	case _SC_LEVEL3_CACHE_SIZE:
 	  if (cur_level == 3)
 	    ret += assoc * part * linesize * sets;
@@ -371,9 +346,11 @@ get_cpu_cache_intel_cpuid4 (int in)
 	case _SC_LEVEL3_CACHE_ASSOC:
 	  if (cur_level == 3)
 	    return assoc;
+	  break;
 	case _SC_LEVEL3_CACHE_LINESIZE:
 	  if (cur_level == 3)
 	    return linesize;
+	  break;
 	}
     }
   return ret;
@@ -486,7 +463,8 @@ get_cpu_cache (int in)
   vendor_id[3] = 0;
   if (!strcmp ((char*) vendor_id, "GenuineIntel"))
     return get_cpu_cache_intel (in, maxf & 0xffff);
-  else if (!strcmp ((char*)vendor_id, "AuthenticAMD"))
+  else if (!strcmp ((char*)vendor_id, "AuthenticAMD")
+           || !strcmp((char*)vendor_id, "HygonGenuine"))
     {
       uint32_t maxe = 0, unused;
       cpuid (&maxe, &unused, &unused, &unused, 0x80000000);
@@ -495,7 +473,7 @@ get_cpu_cache (int in)
   return 0;
 }
 
-enum sc_type { nsup, cons, func };
+enum sc_type { cons, func };
 
 static struct
 {
@@ -507,11 +485,11 @@ static struct
     };
 } sca[] =
 {
-  {cons, {c:ARG_MAX}},			/*   0, _SC_ARG_MAX */
+  {cons, {c:-1L}},			/*   0, _SC_ARG_MAX */
   {cons, {c:CHILD_MAX}},		/*   1, _SC_CHILD_MAX */
   {cons, {c:CLOCKS_PER_SEC}},		/*   2, _SC_CLK_TCK */
   {cons, {c:NGROUPS_MAX}},		/*   3, _SC_NGROUPS_MAX */
-  {func, {f:get_open_max}},		/*   4, _SC_OPEN_MAX */
+  {cons, {c:OPEN_MAX}},		/*   4, _SC_OPEN_MAX */
   {cons, {c:_POSIX_JOB_CONTROL}},	/*   5, _SC_JOB_CONTROL */
   {cons, {c:_POSIX_SAVED_IDS}},		/*   6, _SC_SAVED_IDS */
   {cons, {c:_POSIX_VERSION}},		/*   7, _SC_VERSION */
@@ -527,7 +505,7 @@ static struct
   {cons, {c:SEM_VALUE_MAX}},		/*  17, _SC_SEM_VALUE_MAX */
   {cons, {c:SIGQUEUE_MAX}},		/*  18, _SC_SIGQUEUE_MAX */
   {cons, {c:TIMER_MAX}},		/*  19, _SC_TIMER_MAX */
-  {nsup, {c:0}},			/*  20, _SC_TZNAME_MAX */
+  {cons, {c:-1L}},			/*  20, _SC_TZNAME_MAX */
   {cons, {c:_POSIX_ASYNCHRONOUS_IO}},	/*  21, _SC_ASYNCHRONOUS_IO */
   {cons, {c:_POSIX_FSYNC}},		/*  22, _SC_FSYNC */
   {cons, {c:_POSIX_MAPPED_FILES}},	/*  23, _SC_MAPPED_FILES */
@@ -544,7 +522,7 @@ static struct
   {cons, {c:AIO_LISTIO_MAX}},		/*  34, _SC_AIO_LISTIO_MAX */
   {cons, {c:AIO_MAX}},			/*  35, _SC_AIO_MAX */
   {cons, {c:AIO_PRIO_DELTA_MAX}},	/*  36, _SC_AIO_PRIO_DELTA_MAX */
-  {nsup, {c:0}},			/*  37, _SC_DELAYTIMER_MAX */
+  {cons, {c:DELAYTIMER_MAX}},		/*  37, _SC_DELAYTIMER_MAX */
   {cons, {c:PTHREAD_KEYS_MAX}},		/*  38, _SC_THREAD_KEYS_MAX */
   {cons, {c:PTHREAD_STACK_MIN}},	/*  39, _SC_THREAD_STACK_MIN */
   {cons, {c:-1L}},			/*  40, _SC_THREAD_THREADS_MAX */
@@ -569,7 +547,7 @@ static struct
   {cons, {c:BC_SCALE_MAX}},		/*  59, _SC_BC_SCALE_MAX */
   {cons, {c:BC_STRING_MAX}},		/*  60, _SC_BC_STRING_MAX */
   {cons, {c:_POSIX_CLOCK_SELECTION}},	/*  61, _SC_CLOCK_SELECTION */
-  {nsup, {c:0}},			/*  62, _SC_COLL_WEIGHTS_MAX */
+  {cons, {c:-1L}},			/*  62, _SC_COLL_WEIGHTS_MAX */
   {cons, {c:_POSIX_CPUTIME}},		/*  63, _SC_CPUTIME */
   {cons, {c:EXPR_NEST_MAX}},		/*  64, _SC_EXPR_NEST_MAX */
   {cons, {c:HOST_NAME_MAX}},		/*  65, _SC_HOST_NAME_MAX */
@@ -585,19 +563,19 @@ static struct
   {cons, {c:_POSIX_SPAWN}},		/*  75, _SC_SPAWN */
   {cons, {c:_POSIX_SPIN_LOCKS}},	/*  76, _SC_SPIN_LOCKS */
   {cons, {c:-1L}},			/*  77, _SC_SPORADIC_SERVER */
-  {nsup, {c:0}},			/*  78, _SC_SS_REPL_MAX */
+  {cons, {c:-1L}},			/*  78, _SC_SS_REPL_MAX */
   {cons, {c:SYMLOOP_MAX}},		/*  79, _SC_SYMLOOP_MAX */
   {cons, {c:_POSIX_THREAD_CPUTIME}},	/*  80, _SC_THREAD_CPUTIME */
   {cons, {c:-1L}},			/*  81, _SC_THREAD_SPORADIC_SERVER */
   {cons, {c:_POSIX_TIMEOUTS}},		/*  82, _SC_TIMEOUTS */
   {cons, {c:-1L}},			/*  83, _SC_TRACE */
   {cons, {c:-1L}},			/*  84, _SC_TRACE_EVENT_FILTER */
-  {nsup, {c:0}},			/*  85, _SC_TRACE_EVENT_NAME_MAX */
+  {cons, {c:-1}},			/*  85, _SC_TRACE_EVENT_NAME_MAX */
   {cons, {c:-1L}},			/*  86, _SC_TRACE_INHERIT */
   {cons, {c:-1L}},			/*  87, _SC_TRACE_LOG */
-  {nsup, {c:0}},			/*  88, _SC_TRACE_NAME_MAX */
-  {nsup, {c:0}},			/*  89, _SC_TRACE_SYS_MAX */
-  {nsup, {c:0}},			/*  90, _SC_TRACE_USER_EVENT_MAX */
+  {cons, {c:-1L}},			/*  88, _SC_TRACE_NAME_MAX */
+  {cons, {c:-1L}},			/*  89, _SC_TRACE_SYS_MAX */
+  {cons, {c:-1L}},			/*  90, _SC_TRACE_USER_EVENT_MAX */
   {cons, {c:-1L}},			/*  91, _SC_TYPED_MEMORY_OBJECTS */
   {cons, {c:_POSIX_V6_ILP32_OFF32}},	/*  92, _SC_V6_ILP32_OFF32 */
   {cons, {c:_POSIX_V6_ILP32_OFFBIG}},	/*  93, _SC_V6_ILP32_OFFBIG */
@@ -662,8 +640,6 @@ sysconf (int in)
     {
       switch (sca[in].type)
 	{
-	case nsup:
-	  break;
 	case cons:
 	  return sca[in].c;
 	case func:
@@ -688,7 +664,6 @@ static struct
   {0, NULL},				/* _CS_POSIX_V6_ILP32_OFF32_LDFLAGS */
   {0, NULL},				/* _CS_POSIX_V6_ILP32_OFF32_LIBS */
   {0, NULL},				/* _CS_XBS5_ILP32_OFF32_LINTFLAGS */
-#ifdef __x86_64__
   {0, NULL},				/* _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS */
   {0, NULL},				/* _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS */
   {0, NULL},				/* _CS_POSIX_V6_ILP32_OFFBIG_LIBS */
@@ -702,21 +677,6 @@ static struct
   {ls ("")},				/* _CS_POSIX_V6_LPBIG_OFFBIG_LIBS */
   {ls ("")},				/* _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS */
   {ls ("POSIX_V6_LP64_OFF64")},		/* _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS */
-#else
-  {ls ("")},				/* _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS */
-  {ls ("")},				/* _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS */
-  {ls ("")},				/* _CS_POSIX_V6_ILP32_OFFBIG_LIBS */
-  {ls ("")},				/* _CS_XBS5_ILP32_OFFBIG_LINTFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LP64_OFF64_CFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LP64_OFF64_LDFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LP64_OFF64_LIBS */
-  {0, NULL},				/* _CS_XBS5_LP64_OFF64_LINTFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS */
-  {0, NULL},				/* _CS_POSIX_V6_LPBIG_OFFBIG_LIBS */
-  {0, NULL},				/* _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS */
-  {ls ("POSIX_V6_ILP32_OFFBIG")},	/* _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS */
-#endif
   {ls ("")},				/* _CS_POSIX_V7_THREADS_CFLAGS */
   {ls ("")},				/* _CS_POSIX_V7_THREADS_LDFLAGS */
   {ls ("POSIXLY_CORRECT=1")},		/* _CS_V7_ENV */

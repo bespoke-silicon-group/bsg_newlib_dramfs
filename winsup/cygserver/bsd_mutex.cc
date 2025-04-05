@@ -275,13 +275,12 @@ public:
 };
 
 static msleep_sync_array *msleep_sync;
+extern struct msginfo msginfo;
+extern struct seminfo seminfo;
 
 void
 msleep_init (void)
 {
-  extern struct msginfo msginfo;
-  extern struct seminfo seminfo;
-
   msleep_glob_evt = CreateEvent (NULL, TRUE, FALSE, NULL);
   if (!msleep_glob_evt)
     panic ("CreateEvent in msleep_init failed: %u", GetLastError ());
@@ -327,7 +326,7 @@ _msleep (void *ident, struct mtx *mtx, int priority,
         break;
       case WAIT_OBJECT_0 + 1:	/* Shutdown event (triggered by wakeup_all). */
         priority |= PDROP;
-	/*FALLTHRU*/
+	fallthrough;
       case WAIT_OBJECT_0 + 2:	/* The dependent process has exited. */
 	debug ("msleep process exit or shutdown for %d", td->td_proc->winpid);
 	ret = EIDRM;

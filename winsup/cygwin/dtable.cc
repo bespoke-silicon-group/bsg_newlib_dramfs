@@ -58,7 +58,7 @@ dtable_init ()
     cygheap->fdtab.extend (NOFILE_INCR, 0);
 }
 
-void __stdcall
+void
 set_std_handle (int fd)
 {
   fhandler_base *fh = cygheap->fdtab[fd];
@@ -74,10 +74,10 @@ dtable::extend (size_t howmuch, size_t min)
   size_t new_size = size + howmuch;
   fhandler_base **newfds;
 
-  if (new_size <= OPEN_MAX_MAX)
+  if (new_size <= OPEN_MAX)
     /* ok */;
-  else if (size < OPEN_MAX_MAX && min < OPEN_MAX_MAX)
-    new_size = OPEN_MAX_MAX;
+  else if (size < OPEN_MAX && min < OPEN_MAX)
+    new_size = OPEN_MAX;
   else
     {
       set_errno (EMFILE);
@@ -323,7 +323,7 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
 	   || GetNumberOfConsoleInputEvents (handle, (DWORD *) &buf))
     {
       /* Console I/O */
-      if (myself->ctty > 0)
+      if (CTTY_IS_VALID (myself->ctty))
 	dev.parse (myself->ctty);
       else
 	{
@@ -369,7 +369,7 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
       int openflags = O_BINARY;
 
       /* Console windows are no kernel objects up to Windows 7/2008R2, so the
-      	 access mask returned by NtQueryInformationFile is meaningless.  CMD
+	 access mask returned by NtQueryInformationFile is meaningless.  CMD
 	 always hands down stdin handles as R/O handles, but our tty slave
 	 sides are R/W. */
       if (fh->is_tty ())
@@ -406,13 +406,23 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
 	}
       if (!fh->init (handle, access, bin))
 	api_fatal ("couldn't initialize fd %d for %s", fd, fh->get_name ());
+      if (fh->ispipe ())
+	{
+	  fhandler_pipe *fhp = (fhandler_pipe *) fh;
+	  fhp->set_pipe_buf_size ();
+	  /* Set read pipe always to nonblocking */
+	  fhp->set_pipe_non_blocking (fhp->get_device () == FH_PIPER ?
+				      true : fhp->is_nonblocking ());
+	}
 
-      fh->open_setup (openflags);
+      if (!fh->open_setup (openflags))
+	api_fatal ("open_setup failed, %E");
       fh->usecount = 0;
       cygheap->fdtab[fd] = fh;
       cygheap->fdtab[fd]->inc_refcnt ();
       set_std_handle (fd);
       paranoid_printf ("fd %d, handle %p", fd, handle);
+      fh->post_open_setup (fd);
     }
 }
 
@@ -499,7 +509,7 @@ fh_alloc (path_conv& pc)
 	  break;
 	case FH_PTMX:
 	  if (pc.isopen ())
-	    fh = cnew (fhandler_pty_master, -1);
+	    fh = cnew (fhandler_pty_master, -1, (dev_t) pc.dev);
 	  else
 	    fhraw = cnew_no_ctor (fhandler_pty_master, -1);
 	  break;
@@ -542,6 +552,9 @@ fh_alloc (path_conv& pc)
 	case FH_CLIPBOARD:
 	  fh = cnew (fhandler_dev_clipboard);
 	  break;
+	case FH_OSS_MIXER:
+	  fh = cnew (fhandler_dev_mixer);
+	  break;
 	case FH_OSS_DSP:
 	  fh = cnew (fhandler_dev_dsp);
 	  break;
@@ -552,8 +565,10 @@ fh_alloc (path_conv& pc)
 	  fh = cnew (fhandler_registry);
 	  break;
 	case FH_PROCESS:
-	case FH_PROCESSFD:
 	  fh = cnew (fhandler_process);
+	  break;
+	case FH_PROCESSFD:
+	  fh = cnew (fhandler_process_fd);
 	  break;
 	case FH_PROCNET:
 	  fh = cnew (fhandler_procnet);
@@ -570,25 +585,47 @@ fh_alloc (path_conv& pc)
 	case FH_DEV:
 	  fh = cnew (fhandler_dev);
 	  break;
+	case FH_DEV_DISK:
+	  fh = cnew (fhandler_dev_disk);
+	  break;
+	case FH_DEV_FD:
+	  fh = cnew (fhandler_dev_fd);
+	  break;
 	case FH_CYGDRIVE:
 	  fh = cnew (fhandler_cygdrive);
+	  break;
+	case FH_SIGNALFD:
+	  fh = cnew (fhandler_signalfd);
+	  break;
+	case FH_TIMERFD:
+	  fh = cnew (fhandler_timerfd);
+	  break;
+	case FH_MQUEUE:
+	  fh = cnew (fhandler_mqueue);
 	  break;
 	case FH_TTY:
 	  if (!pc.isopen ())
 	    {
-	      fhraw = cnew_no_ctor (fhandler_console, -1);
+	      if (CTTY_IS_VALID (myself->ctty))
+		{
+		  if (iscons_dev (myself->ctty))
+		    fhraw = cnew_no_ctor (fhandler_console, -1);
+		  else
+		    fhraw = cnew_no_ctor (fhandler_pty_slave, -1);
+		}
 	      debug_printf ("not called from open for /dev/tty");
 	    }
-	  else if (myself->ctty <= 0 && last_tty_dev
+	  else if (!CTTY_IS_VALID (myself->ctty) && last_tty_dev
 		   && !myself->set_ctty (fh_last_tty_dev, 0))
 	    debug_printf ("no /dev/tty assigned");
-	  else if (myself->ctty > 0)
+	  else if (CTTY_IS_VALID (myself->ctty))
 	    {
 	      debug_printf ("determining /dev/tty assignment for ctty %p", myself->ctty);
 	      if (iscons_dev (myself->ctty))
 		fh = cnew (fhandler_console, pc.dev);
 	      else
-		fh = cnew (fhandler_pty_slave, myself->ctty);
+		fh = cnew (fhandler_pty_slave,
+			   minor (myself->ctty), (dev_t) pc.dev);
 	      if (fh->dev () != FH_NADA)
 		fh->set_name ("/dev/tty");
 	    }
@@ -639,7 +676,7 @@ build_fh_pc (path_conv& pc)
   else if ((fh->archetype = cygheap->fdtab.find_archetype (fh->dev ())))
     {
       debug_printf ("found an archetype for %s(%d/%d) io_handle %p", fh->get_name (), fh->dev ().get_major (), fh->dev ().get_minor (),
-		    fh->archetype->get_io_handle ());
+		    fh->archetype->get_handle ());
       if (!fh->get_name ())
 	fh->set_name (fh->archetype->dev ().name ());
     }
@@ -658,7 +695,7 @@ build_fh_pc (path_conv& pc)
 
   /* Keep track of the last tty-like thing opened.  We could potentially want
      to open it if /dev/tty is referenced. */
-  if (myself->ctty > 0 || !fh->is_tty () || !pc.isctty_capable ())
+  if (CTTY_IS_VALID (myself->ctty) || !fh->is_tty () || !pc.isctty_capable ())
     last_tty_dev = FH_NADA;
   else
     last_tty_dev = fh->dev ();
@@ -671,18 +708,15 @@ out:
 fhandler_base *
 dtable::dup_worker (fhandler_base *oldfh, int flags)
 {
-  /* Don't call set_name in build_fh_pc.  It will be called in
-     fhandler_base::operator= below.  Calling it twice will result
-     in double allocation. */
   fhandler_base *newfh = oldfh->clone ();
   if (!newfh)
-    debug_printf ("build_fh_pc failed");
+    debug_printf ("clone failed");
   else
     {
       if (!oldfh->archetype)
-	newfh->set_io_handle (NULL);
+	newfh->set_handle (NULL);
 
-      newfh->pc.reset_conv_handle ();
+      newfh->pc.close_conv_handle ();
       if (oldfh->dup (newfh, flags))
 	{
 	  delete newfh;
@@ -700,7 +734,7 @@ dtable::dup_worker (fhandler_base *oldfh, int flags)
 	  /* The O_CLOEXEC flag enforces close-on-exec behaviour. */
 	  newfh->set_close_on_exec (!!(flags & O_CLOEXEC));
 	  debug_printf ("duped '%s' old %p, new %p", oldfh->get_name (),
-			oldfh->get_io_handle (), newfh->get_io_handle ());
+			oldfh->get_handle (), newfh->get_handle ());
 	}
     }
   return newfh;
@@ -730,7 +764,7 @@ dtable::dup3 (int oldfd, int newfd, int flags)
       set_errno (EBADF);
       goto done;
     }
-  if (newfd >= OPEN_MAX_MAX || newfd < 0)
+  if (newfd >= OPEN_MAX || newfd < 0)
     {
       syscall_printf ("new fd out of bounds: %d", newfd);
       set_errno (EBADF);
@@ -743,13 +777,6 @@ dtable::dup3 (int oldfd, int newfd, int flags)
       return -1;
     }
 
-  /* This is a temporary kludge until all utilities can catch up with
-     a change in behavior that implements linux functionality:  opening
-     a tty should not automatically cause it to become the controlling
-     tty for the process.  */
-  if (newfd > 2)
-    flags |= O_NOCTTY;
-
   if ((newfh = dup_worker (fds[oldfd], flags)) == NULL)
     {
       res = -1;
@@ -757,7 +784,7 @@ dtable::dup3 (int oldfd, int newfd, int flags)
     }
 
   debug_printf ("newfh->io_handle %p, oldfh->io_handle %p, new win32_name %p, old win32_name %p",
-		newfh->get_io_handle (), fds[oldfd]->get_io_handle (), newfh->get_win32_name (), fds[oldfd]->get_win32_name ());
+		newfh->get_handle (), fds[oldfd]->get_handle (), newfh->get_win32_name (), fds[oldfd]->get_win32_name ());
 
   if (!not_open (newfd))
     close (newfd);
@@ -849,12 +876,13 @@ dtable::set_file_pointers_for_exec ()
 {
 /* This is not POSIX-compliant so the function is only called for
    non-Cygwin processes. */
-  LONG off_high = 0;
+  LARGE_INTEGER eof = { QuadPart: 0 };
+
   lock ();
   fhandler_base *fh;
   for (size_t i = 0; i < size; i++)
     if ((fh = fds[i]) != NULL && fh->get_flags () & O_APPEND)
-      SetFilePointer (fh->get_handle (), 0, &off_high, FILE_END);
+      SetFilePointerEx (fh->get_handle (), eof, NULL, FILE_END);
   unlock ();
 }
 
@@ -882,15 +910,17 @@ dtable::fixup_after_exec ()
 	/* Close the handle if it's close-on-exec or if an error was detected
 	   (typically with opening a console in a gui app) by fixup_after_exec.
 	 */
-	if (fh->close_on_exec () || (!fh->nohandle () && !fh->get_io_handle ()))
+	if (fh->close_on_exec () || (!fh->nohandle () && !fh->get_handle ()))
 	  fixup_close (i, fh);
 	else if (fh->get_popen_pid ())
 	  close (i);
 	else if (i == 0)
-	  SetStdHandle (std_consts[i], fh->get_io_handle ());
+	  SetStdHandle (std_consts[i], fh->get_handle ());
 	else if (i <= 2)
 	  SetStdHandle (std_consts[i], fh->get_output_handle ());
       }
+  if (cygheap->ctty)
+    cygheap->ctty->fixup_after_exec ();
 }
 
 void
@@ -904,7 +934,7 @@ dtable::fixup_after_fork (HANDLE parent)
 	  {
 	    debug_printf ("fd %d (%s)", i, fh->get_name ());
 	    fh->fixup_after_fork (parent);
-	    if (!fh->nohandle () && !fh->get_io_handle ())
+	    if (!fh->nohandle () && !fh->get_handle ())
 	      {
 		/* This should actually never happen but it's here to make sure
 		   we don't crash due to access of an unopened file handle.  */
@@ -913,10 +943,13 @@ dtable::fixup_after_fork (HANDLE parent)
 	      }
 	  }
 	if (i == 0)
-	  SetStdHandle (std_consts[i], fh->get_io_handle ());
+	  SetStdHandle (std_consts[i], fh->get_handle ());
 	else if (i <= 2)
 	  SetStdHandle (std_consts[i], fh->get_output_handle ());
       }
+
+  if (cygheap->ctty)
+    cygheap->ctty->fixup_after_fork (parent);
 }
 
 static void

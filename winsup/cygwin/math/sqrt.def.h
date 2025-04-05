@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -50,7 +50,7 @@
  * asm ("fsqrts %[dst], %[src];\n" : [dst] "=w" (res) : [src] "w" (x));
  */
 __FLT_TYPE __fsqrt_internal( __FLT_TYPE x );
-asm(".def __fsqrt_internal; .scl 2; .type 32; .endef\n"
+asm volatile(".def __fsqrt_internal; .scl 2; .type 32; .endef\n"
     "\t.text\n"
     "\t.align 4\n"
     "\t.globl __fsqrt_internal\n"
@@ -73,8 +73,11 @@ __FLT_ABI (sqrt) (__FLT_TYPE x)
       if (x_class == FP_ZERO)
 	return __FLT_CST (-0.0);
 
-      __FLT_RPT_DOMAIN ("sqrt", x, 0.0, x);
-      return x;
+      if (x_class == FP_NAN)
+	return x;
+
+      errno = EDOM;
+      return -__FLT_NAN;
     }
   else if (x_class == FP_ZERO)
     return __FLT_CST (0.0);
@@ -85,7 +88,7 @@ __FLT_ABI (sqrt) (__FLT_TYPE x)
 #if defined(__arm__) || defined(_ARM_)
   __fsqrt_internal(x);
 #elif defined(_X86_) || defined(__i386__) || defined(_AMD64_) || defined(__x86_64__)
-  asm ("fsqrt" : "=t" (res) : "0" (x));
+  asm volatile ("fsqrt" : "=t" (res) : "0" (x));
 #else
 #error Not supported on your platform yet
 #endif

@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -52,7 +52,8 @@ static long double
 __expl_internal (long double x)
 {
   long double res = 0.0L;
-  asm ("fldl2e\n\t"             /* 1  log2(e)         */
+  asm volatile (
+       "fldl2e\n\t"             /* 1  log2(e)         */
        "fmul %%st(1),%%st\n\t"  /* 1  x log2(e)       */
 
 #ifdef __x86_64__
@@ -109,13 +110,13 @@ __FLT_ABI(exp) (__FLT_TYPE x)
   int x_class = fpclassify (x);
   if (x_class == FP_NAN)
     {
-      __FLT_RPT_DOMAIN ("exp", x, 0.0, x);
+      errno = EDOM;
       return x;
     }
   else if (x_class == FP_INFINITE)
     {
       __FLT_TYPE r = (signbit (x) ? __FLT_CST (0.0) : __FLT_HUGE_VAL);
-      __FLT_RPT_ERANGE ("exp", x, 0.0, r, signbit (x));
+      errno = ERANGE;
       return r;
     }
   else if (x_class == FP_ZERO)
@@ -124,7 +125,7 @@ __FLT_ABI(exp) (__FLT_TYPE x)
     }
   else if (x > __FLT_MAXLOG)
     {
-      __FLT_RPT_ERANGE ("exp", x, 0.0, __FLT_HUGE_VAL, 1);
+      errno = ERANGE;
       return __FLT_HUGE_VAL;
     }
   else if (x < __FLT_MINLOG)

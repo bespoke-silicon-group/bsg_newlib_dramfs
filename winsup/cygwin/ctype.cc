@@ -16,7 +16,7 @@ extern char _ctype_b[128 + 256];
    time-critical anyway. */
 extern int __iso_8859_index (const char *charset_ext);	/* Newlib */
 extern int __cp_index (const char *charset_ext);	/* Newlib */
-extern const char __ctype_cp[22][128 + 256];		/* Newlib */
+extern const char __ctype_cp[27][128 + 256];		/* Newlib */
 extern const char __ctype_iso[15][128 + 256];		/* Newlib */
 
 void
@@ -34,22 +34,12 @@ __set_ctype (struct __locale_t *loc, const char *charset)
 	idx = 0;
       else
 	++idx;
-      if (CYGWIN_VERSION_CHECK_FOR_OLD_CTYPE)
-	{
-	  memcpy (_ctype_b, __ctype_iso[idx], 128);
-	  memcpy (_ctype_b + 256, __ctype_iso[idx] + 256, 128);
-	}
       ctype_ptr = (char *) __ctype_iso[idx];
       break;
     case 'C':
       idx = __cp_index (charset + 2);
       if (idx < 0)
 	break;
-      if (CYGWIN_VERSION_CHECK_FOR_OLD_CTYPE)
-	{
-	  memcpy (_ctype_b, __ctype_cp[idx], 128);
-	  memcpy (_ctype_b + 256, __ctype_cp[idx] + 256, 128);
-	}
       ctype_ptr = (char *) __ctype_cp[idx];
       break;
     default:
@@ -57,11 +47,6 @@ __set_ctype (struct __locale_t *loc, const char *charset)
     }
   if (!ctype_ptr)
     {
-      if (CYGWIN_VERSION_CHECK_FOR_OLD_CTYPE)
-	{
-	  memset (_ctype_b, 0, 128);
-	  memset (_ctype_b + 256, 0, 128);
-	}
       ctype_ptr = (char *) _ctype_b;
     }
   loc->ctype_ptr = ctype_ptr + 127;

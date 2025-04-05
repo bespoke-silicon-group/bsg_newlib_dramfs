@@ -52,7 +52,7 @@ cygthread::callfunc (bool issimplestub)
 /* Initial stub called by cygthread constructor. Performs initial
    per-thread initialization and loops waiting for another thread function
    to execute.  */
-DWORD WINAPI
+DWORD
 cygthread::stub (VOID *arg)
 {
   cygthread *info = (cygthread *) arg;
@@ -87,6 +87,7 @@ cygthread::stub (VOID *arg)
 #endif
       else
 	{
+	  SetThreadName (info->id, info->__name);
 	  info->callfunc (false);
 
 	  HANDLE notify = info->notify_detached;
@@ -121,13 +122,14 @@ cygthread::stub (VOID *arg)
 
 /* Overflow stub called by cygthread constructor. Calls specified function
    and then exits the thread.  */
-DWORD WINAPI
+DWORD
 cygthread::simplestub (VOID *arg)
 {
   cygthread *info = (cygthread *) arg;
   _my_tls._ctinfo = info;
   info->stack_ptr = &arg;
   HANDLE notify = info->notify_detached;
+  SetThreadName (info->id, info->__name);
   info->callfunc (true);
   if (notify)
      SetEvent (notify);
@@ -213,8 +215,6 @@ cygthread::create ()
 			    this, 0, &id);
       if (!htobe)
 	api_fatal ("CreateThread failed for %s - %p<%y>, %E", __name, h, id);
-      else
-	SetThreadName (GetThreadId (htobe), __name);
       thread_printf ("created name '%s', thread %p, id %y", __name, h, id);
 #ifdef DEBUGGING
       terminated = false;

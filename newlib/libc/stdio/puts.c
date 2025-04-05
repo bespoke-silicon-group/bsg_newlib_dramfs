@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -87,8 +87,10 @@ _puts_r (struct _reent *ptr,
   fp = _stdout_r (ptr);
   CHECK_INIT (ptr, fp);
   _newlib_flockfile_start (fp);
-  ORIENT (fp, -1);
-  result = (__sfvwrite_r (ptr, fp, &uio) ? EOF : '\n');
+  if (ORIENT (fp, -1) != -1)
+    result = EOF;
+  else
+    result = (__sfvwrite_r (ptr, fp, &uio) ? EOF : '\n');
   _newlib_flockfile_end (fp);
   return result;
 #else
@@ -100,7 +102,6 @@ _puts_r (struct _reent *ptr,
   fp = _stdout_r (ptr);
   CHECK_INIT (ptr, fp);
   _newlib_flockfile_start (fp);
-  ORIENT (fp, -1);
   /* Make sure we can write.  */
   if (cantwrite (ptr, fp))
     goto err;

@@ -35,6 +35,9 @@ details. */
    (path[mount_table->cygdrive_len + 1] == '/' || \
     !path[mount_table->cygdrive_len + 1]))
 
+#define isdev_disk(path) \
+  (path_prefix_p (dev_disk, (path), dev_disk_len, false))
+
 #define isproc(path) \
   (path_prefix_p (proc, (path), proc_len, false))
 
@@ -42,12 +45,34 @@ bool NO_COPY mount_info::got_usr_bin;
 bool NO_COPY mount_info::got_usr_lib;
 int NO_COPY mount_info::root_idx = -1;
 
-/* is_unc_share: Return non-zero if PATH begins with //server/share
+/* is_native_path: Return non-zero if PATH starts with \??\[a-zA-Z] or
+		   with \\?\[a-zA-Z] or with \\.\[a-zA-Z].
+
+   is_unc_share: Return non-zero if PATH begins with //server/share
 		 or with one of the native prefixes //./ or //?/
+
    This function is only used to test for valid input strings.
    The later normalization drops the native prefixes. */
 
-static inline bool __stdcall
+/* list of invalid chars in server names.  Note that underscore is ok,
+   but it cripples interoperability. */
+const char _invalid_server_char[] = ",~:!@#$%^&'.(){} ";
+#define valid_server_char(_c)	({				\
+		const char __c = (_c);				\
+		!iscntrl(__c)					\
+		&& strchr (_invalid_server_char, (_c)) == NULL;	\
+	})
+
+/* list of invalid chars in UNC filenames.  These are a few more than
+   for "normal" filenames. */
+const char _invalid_share_char[] = "\"/\\[]:|<>+=;,?*";
+#define valid_share_char(_c)	({				\
+		const char __c = (_c);				\
+		!iscntrl(__c)					\
+		&& strchr (_invalid_share_char, __c) == NULL;	\
+	})
+
+static inline bool
 is_native_path (const char *path)
 {
   return isdirsep (path[0])
@@ -57,15 +82,15 @@ is_native_path (const char *path)
 	 && isalpha (path[4]);
 }
 
-static inline bool __stdcall
+static inline bool
 is_unc_share (const char *path)
 {
   const char *p;
   return (isdirsep (path[0])
 	 && isdirsep (path[1])
-	 && isalnum (path[2])
+	 && valid_server_char (path[2])
 	 && ((p = strpbrk (path + 3, "\\/")) != NULL)
-	 && isalnum (p[1]));
+	 && valid_share_char (p[1]));
 }
 
 /* Return true if src_path is a valid, internally supported device name.
@@ -294,15 +319,52 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
   if (is_remote_drive ())
     {
 /* Should be reevaluated for each new OS.  Right now this mask is valid up
-   to Windows 8.  The important point here is to test only flags indicating
+   to Windows 11.  The important point here is to test only flags indicating
    capabilities and to ignore flags indicating a specific state of this
    volume.  At present these flags to ignore are FILE_VOLUME_IS_COMPRESSED,
-   FILE_READ_ONLY_VOLUME, and FILE_SEQUENTIAL_WRITE_ONCE.  The additional
-   filesystem flags supported since Windows 7 are also ignored for now.
-   They add information, but only on W7 and later, and only for filesystems
-   also supporting these flags, right now only NTFS. */
-#define GETVOLINFO_VALID_MASK (0x002701ffUL)
+   FILE_READ_ONLY_VOLUME, FILE_SEQUENTIAL_WRITE_ONCE and FILE_DAX_VOLUME. */
+#define GETVOLINFO_VALID_MASK (FILE_CASE_SENSITIVE_SEARCH		\
+			       | FILE_CASE_PRESERVED_NAMES		\
+			       | FILE_UNICODE_ON_DISK			\
+			       | FILE_PERSISTENT_ACLS			\
+			       | FILE_FILE_COMPRESSION			\
+			       | FILE_VOLUME_QUOTAS			\
+			       | FILE_SUPPORTS_SPARSE_FILES		\
+			       | FILE_SUPPORTS_REPARSE_POINTS		\
+			       | FILE_SUPPORTS_REMOTE_STORAGE		\
+			       | FILE_RETURNS_CLEANUP_RESULT_INFO	\
+			       | FILE_SUPPORTS_POSIX_UNLINK_RENAME	\
+			       | FILE_SUPPORTS_OBJECT_IDS		\
+			       | FILE_SUPPORTS_ENCRYPTION		\
+			       | FILE_NAMED_STREAMS			\
+			       | FILE_SUPPORTS_TRANSACTIONS		\
+			       | FILE_SUPPORTS_HARD_LINKS		\
+			       | FILE_SUPPORTS_EXTENDED_ATTRIBUTES	\
+			       | FILE_SUPPORTS_OPEN_BY_FILE_ID		\
+			       | FILE_SUPPORTS_USN_JOURNAL		\
+			       | FILE_SUPPORTS_INTEGRITY_STREAMS	\
+			       | FILE_SUPPORTS_BLOCK_REFCOUNTING	\
+			       | FILE_SUPPORTS_SPARSE_VDL		\
+			       | FILE_SUPPORTS_GHOSTING)
+/* This is the pre-Win7 mask used to recognize 3rd-party drivers.  We'll never
+   learn in time when those drivers start to support the new (har har) Win7 FS
+   flags.  */
+#define GETVOLINFO_NON_WIN_MASK (FILE_CASE_SENSITIVE_SEARCH		\
+			       | FILE_CASE_PRESERVED_NAMES		\
+			       | FILE_UNICODE_ON_DISK			\
+			       | FILE_PERSISTENT_ACLS			\
+			       | FILE_FILE_COMPRESSION			\
+			       | FILE_VOLUME_QUOTAS			\
+			       | FILE_SUPPORTS_SPARSE_FILES		\
+			       | FILE_SUPPORTS_REPARSE_POINTS		\
+			       | FILE_SUPPORTS_REMOTE_STORAGE		\
+			       | FILE_SUPPORTS_OBJECT_IDS		\
+			       | FILE_SUPPORTS_ENCRYPTION		\
+			       | FILE_NAMED_STREAMS			\
+			       | FILE_SUPPORTS_TRANSACTIONS)
+
 #define TEST_GVI(f,m) (((f) & GETVOLINFO_VALID_MASK) == (m))
+#define TEST_GVI_NON_WIN(f,m) (((f) & GETVOLINFO_NON_WIN_MASK) == (m))
 
 /* FIXME: This flag twist is getting awkward.  There should really be some
    other method.  Maybe we need mount flags to allow the user to fix file
@@ -313,7 +375,7 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 #define SAMBA_IGNORE (FILE_VOLUME_QUOTAS \
 		      | FILE_SUPPORTS_OBJECT_IDS \
 		      | FILE_UNICODE_ON_DISK)
-#define FS_IS_SAMBA TEST_GVI(flags () & ~SAMBA_IGNORE, \
+#define FS_IS_SAMBA TEST_GVI_NON_WIN(flags () & ~SAMBA_IGNORE, \
 			     FILE_CASE_SENSITIVE_SEARCH \
 			     | FILE_CASE_PRESERVED_NAMES \
 			     | FILE_PERSISTENT_ACLS)
@@ -321,14 +383,15 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 #define NETAPP_IGNORE (FILE_SUPPORTS_SPARSE_FILES \
 		       | FILE_SUPPORTS_REPARSE_POINTS \
 		       | FILE_PERSISTENT_ACLS)
-#define FS_IS_NETAPP_DATAONTAP TEST_GVI(flags () & ~NETAPP_IGNORE, \
+#define FS_IS_NETAPP_DATAONTAP TEST_GVI_NON_WIN(flags () & ~NETAPP_IGNORE, \
 			     FILE_CASE_SENSITIVE_SEARCH \
 			     | FILE_CASE_PRESERVED_NAMES \
 			     | FILE_UNICODE_ON_DISK \
 			     | FILE_NAMED_STREAMS)
-/* These are the minimal flags supported by NTFS since Windows 2000.  Every
-   filesystem not supporting these flags is not a native NTFS.  We subsume
-   them under the filesystem type "cifs". */
+/* These are the minimal flags supported by NTFS since Windows 7, when
+   checking a remote NTFS filesystem.  Every filesystem not supporting these
+   flags is not a native NTFS.
+   We subsume them under the filesystem type "cifs". */
 #define MINIMAL_WIN_NTFS_FLAGS (FILE_CASE_SENSITIVE_SEARCH \
 				| FILE_CASE_PRESERVED_NAMES \
 				| FILE_UNICODE_ON_DISK \
@@ -339,7 +402,9 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 				| FILE_SUPPORTS_REPARSE_POINTS \
 				| FILE_SUPPORTS_OBJECT_IDS \
 				| FILE_SUPPORTS_ENCRYPTION \
-				| FILE_NAMED_STREAMS)
+				| FILE_NAMED_STREAMS \
+				| FILE_SUPPORTS_HARD_LINKS \
+				| FILE_SUPPORTS_EXTENDED_ATTRIBUTES)
 #define FS_IS_WINDOWS_NTFS TEST_GVI(flags () & MINIMAL_WIN_NTFS_FLAGS, \
 				    MINIMAL_WIN_NTFS_FLAGS)
 /* These are the exact flags of a real Windows FAT/FAT32 filesystem.
@@ -458,8 +523,22 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
   caseinsensitive ((!(flags () & FILE_CASE_SENSITIVE_SEARCH) || is_samba ())
 		   && !is_nfs ());
 
+  /* Check for being an SSD */
+  if (!is_remote_drive () && !is_cdrom ())
+    {
+      /* Theoretically FileFsVolumeFlagsInformation would be sufficient,
+	 but apparently it's not exposed into userspace. */
+      FILE_FS_SECTOR_SIZE_INFORMATION ffssi;
+
+      status = NtQueryVolumeInformationFile (vol, &io, &ffssi, sizeof ffssi,
+					     FileFsSectorSizeInformation);
+      if (NT_SUCCESS (status))
+	is_ssd (!!(ffssi.Flags & SSINFO_FLAGS_NO_SEEK_PENALTY));
+    }
+
   if (!in_vol)
     NtClose (vol);
+
   fsi_cache.add (hash, this);
   return true;
 }
@@ -473,13 +552,13 @@ mount_info::create_root_entry (const PWCHAR root)
   sys_wcstombs (native_root, PATH_MAX, root);
   assert (*native_root != '\0');
   if (add_item (native_root, "/",
-		MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC)
+		MOUNT_SYSTEM | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC)
       < 0)
     api_fatal ("add_item (\"%s\", \"/\", ...) failed, errno %d", native_root, errno);
   /* Create a default cygdrive entry.  Note that this is a user entry.
      This allows to override it with mount, unless the sysadmin created
      a cygdrive entry in /etc/fstab. */
-  cygdrive_flags = MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_CYGDRIVE;
+  cygdrive_flags = MOUNT_NOPOSIX | MOUNT_CYGDRIVE;
   strcpy (cygdrive, CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX "/");
   cygdrive_len = strlen (cygdrive);
 }
@@ -508,31 +587,13 @@ mount_info::init (bool user_init)
       if (!got_usr_bin)
       {
 	stpcpy (p, "\\bin");
-	add_item (native, "/usr/bin",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
+	add_item (native, "/usr/bin", MOUNT_SYSTEM | MOUNT_AUTOMATIC);
       }
       if (!got_usr_lib)
       {
 	stpcpy (p, "\\lib");
-	add_item (native, "/usr/lib",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
+	add_item (native, "/usr/lib", MOUNT_SYSTEM | MOUNT_AUTOMATIC);
       }
-    }
-}
-
-static void
-set_flags (unsigned *flags, unsigned val)
-{
-  *flags = val;
-  if (!(*flags & PATH_BINARY))
-    {
-      *flags |= PATH_TEXT;
-      debug_printf ("flags: text (%y)", *flags & (PATH_TEXT | PATH_BINARY));
-    }
-  else
-    {
-      *flags |= PATH_BINARY;
-      debug_printf ("flags: binary (%y)", *flags & (PATH_TEXT | PATH_BINARY));
     }
 }
 
@@ -542,7 +603,7 @@ mount_item::build_win32 (char *dst, const char *src, unsigned *outflags, unsigne
   int n, err = 0;
   const char *real_native_path;
   int real_posix_pathlen;
-  set_flags (outflags, (unsigned) flags);
+  *outflags = flags;
   if (!cygheap->root.exists () || posix_pathlen != 1 || posix_path[0] != '/')
     {
       n = native_pathlen;
@@ -613,7 +674,7 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
   /* See if this is a cygwin "device" */
   if (win32_device_name (src_path, dst, dev))
     {
-      *flags = MOUNT_BINARY;	/* FIXME: Is this a sensible default for devices? */
+      *flags = 0;
       rc = 0;
       goto out_no_chroot_check;
     }
@@ -626,7 +687,7 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
       if (!strchr (src_path + 2, '/'))
 	{
 	  dev = *netdrive_dev;
-	  set_flags (flags, PATH_BINARY);
+	  *flags = 0;
 	}
       else
 	{
@@ -635,10 +696,17 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
 	     are rather (warning, poetic description ahead) windows into the
 	     native Win32 world.  This also gives the user an elegant way to
 	     change the settings for those paths in a central place. */
-	  set_flags (flags, (unsigned) cygdrive_flags);
+	  *flags = cygdrive_flags;
 	}
       backslashify (src_path, dst, 0);
       /* Go through chroot check */
+      goto out;
+    }
+  if (isdev_disk (src_path))
+    {
+      dev = *dev_disk_dev;
+      *flags = 0;
+      strcpy (dst, src_path);
       goto out;
     }
   if (isproc (src_path))
@@ -647,14 +715,14 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
       dev = fhandler_proc::get_proc_fhandler (src_path);
       if (dev == FH_NADA)
 	return ENOENT;
-      set_flags (flags, PATH_BINARY);
+      *flags = 0;
       if (isprocsys_dev (dev))
 	{
 	  if (src_path[procsys_len])
 	    backslashify (src_path + procsys_len, dst, 0);
 	  else	/* Avoid empty NT path. */
 	    stpcpy (dst, "\\");
-	  set_flags (flags, (unsigned) cygdrive_flags);
+	  *flags = cygdrive_flags;
 	}
       else
 	strcpy (dst, src_path);
@@ -675,7 +743,7 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
 	}
       else if (cygdrive_win32_path (src_path, dst, unit))
 	{
-	  set_flags (flags, (unsigned) cygdrive_flags);
+	  *flags = cygdrive_flags;
 	  goto out;
 	}
       else if (mount_table->cygdrive_len > 1)
@@ -741,12 +809,12 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
   return rc;
 }
 
-int
-mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
+size_t
+mount_info::get_mounts_here (const char *parent_dir, size_t parent_dir_len,
 			     PUNICODE_STRING mount_points,
 			     PUNICODE_STRING cygd)
 {
-  int n_mounts = 0;
+  size_t n_mounts = 0;
 
   for (int i = 0; i < nmounts; i++)
     {
@@ -757,18 +825,27 @@ mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
       if (last_slash == mi->posix_path)
 	{
 	  if (parent_dir_len == 1 && mi->posix_pathlen > 1)
-	    RtlCreateUnicodeStringFromAsciiz (&mount_points[n_mounts++],
-					      last_slash + 1);
+	    sys_mbstouni_alloc (&mount_points[n_mounts++], HEAP_BUF,
+			        last_slash + 1);
 	}
-      else if (parent_dir_len == last_slash - mi->posix_path
+      else if (parent_dir_len == (size_t) (last_slash - mi->posix_path)
 	       && strncasematch (parent_dir, mi->posix_path, parent_dir_len))
-	RtlCreateUnicodeStringFromAsciiz (&mount_points[n_mounts++],
-					  last_slash + 1);
+	sys_mbstouni_alloc (&mount_points[n_mounts++], HEAP_BUF,
+			    last_slash + 1);
     }
-  RtlCreateUnicodeStringFromAsciiz (cygd, cygdrive + 1);
+  sys_mbstouni_alloc (cygd, HEAP_BUF, cygdrive + 1);
   if (cygd->Length)
     cygd->Length -= 2;	// Strip trailing slash
   return n_mounts;
+}
+
+void
+mount_info::free_mounts_here (PUNICODE_STRING mount_points, int n_mounts,
+			      PUNICODE_STRING cygd)
+{
+  for (int i = 0; i < n_mounts; ++i)
+    cfree (mount_points[i].Buffer);
+  cfree (cygd->Buffer);
 }
 
 /* cygdrive_posix_path: Build POSIX path used as the
@@ -996,21 +1073,6 @@ out:
   return 0;
 }
 
-/* Return flags associated with a mount point given the win32 path. */
-
-unsigned
-mount_info::set_flags_from_win32_path (const char *p)
-{
-  for (int i = 0; i < nmounts; i++)
-    {
-      mount_item &mi = mount[native_sorted[i]];
-      if (path_prefix_p (mi.native_path, p, mi.native_pathlen,
-			 mi.flags & MOUNT_NOPOSIX))
-	return mi.flags;
-    }
-  return PATH_BINARY;
-}
-
 inline char *
 skip_ws (char *in)
 {
@@ -1030,7 +1092,7 @@ find_ws (char *in)
 inline char *
 conv_fstab_spaces (char *field)
 {
-  register char *sp = field;
+  char *sp = field;
   while ((sp = strstr (sp, "\\040")) != NULL)
     {
       *sp++ = ' ';
@@ -1048,7 +1110,7 @@ struct opt
 {
   {"acl", MOUNT_NOACL, 1},
   {"auto", 0, 0},
-  {"binary", MOUNT_BINARY, 0},
+  {"binary", MOUNT_TEXT, 1},
   {"bind", MOUNT_BIND, 0},
   {"cygexec", MOUNT_CYGWIN_EXEC, 0},
   {"dos", MOUNT_DOS, 0},
@@ -1062,7 +1124,7 @@ struct opt
   {"posix=0", MOUNT_NOPOSIX, 0},
   {"posix=1", MOUNT_NOPOSIX, 1},
   {"sparse", MOUNT_SPARSE, 0},
-  {"text", MOUNT_BINARY, 1},
+  {"text", MOUNT_TEXT, 0},
   {"user", MOUNT_SYSTEM, 1}
 };
 
@@ -1164,7 +1226,7 @@ mount_info::from_fstab_line (char *line, bool user)
     return true;
   cend = find_ws (c);
   *cend = '\0';
-  unsigned mount_flags = MOUNT_SYSTEM | MOUNT_BINARY;
+  unsigned mount_flags = MOUNT_SYSTEM;
   if (!strcmp (fs_type, "cygdrive"))
     mount_flags |= MOUNT_NOPOSIX;
   if (!strcmp (fs_type, "usertemp"))
@@ -1181,7 +1243,7 @@ mount_info::from_fstab_line (char *line, bool user)
       int error = conv_to_win32_path (bound_path, native_path, dev, &flags);
       if (error || strlen (native_path) >= MAX_PATH)
 	return true;
-      if ((mount_flags & ~MOUNT_SYSTEM) == (MOUNT_BIND | MOUNT_BINARY))
+      if ((mount_flags & ~MOUNT_SYSTEM) == MOUNT_BIND)
 	mount_flags = (MOUNT_BIND | flags)
 		      & ~(MOUNT_IMMUTABLE | MOUNT_AUTOMATIC);
     }
@@ -1301,7 +1363,7 @@ mount_info::get_cygdrive_info (char *user, char *system, char *user_flags,
 	path[cygdrive_len - 1] = '\0';
     }
   if (flags)
-    strcpy (flags, (cygdrive_flags & MOUNT_BINARY) ? "binmode" : "textmode");
+    strcpy (flags, (cygdrive_flags & MOUNT_TEXT) ? "textmode" : "binmode");
   return 0;
 }
 
@@ -1309,8 +1371,8 @@ static mount_item *mounts_for_sort;
 
 /* sort_by_posix_name: qsort callback to sort the mount entries.  Sort
    user mounts ahead of system mounts to the same POSIX path. */
-/* FIXME: should the user should be able to choose whether to
-   prefer user or system mounts??? */
+/* FIXME: should the user be able to choose whether to prefer user or
+   system mounts??? */
 static int
 sort_by_posix_name (const void *a, const void *b)
 {
@@ -1345,8 +1407,8 @@ sort_by_posix_name (const void *a, const void *b)
 
 /* sort_by_native_name: qsort callback to sort the mount entries.  Sort
    user mounts ahead of system mounts to the same POSIX path. */
-/* FIXME: should the user should be able to choose whether to
-   prefer user or system mounts??? */
+/* FIXME: should the user be able to choose whether to prefer user or
+   system mounts??? */
 static int
 sort_by_native_name (const void *a, const void *b)
 {
@@ -1627,7 +1689,7 @@ fillout_mntent (const char *native_path, const char *posix_path, unsigned flags)
      binary or textmode, or exec.  We don't print
      `silent' here; it's a magic internal thing. */
 
-  if (!(flags & MOUNT_BINARY))
+  if (flags & MOUNT_TEXT)
     strcpy (_my_tls.locals.mnt_opts, (char *) "text");
   else
     strcpy (_my_tls.locals.mnt_opts, (char *) "binary");
@@ -1783,7 +1845,7 @@ mount (const char *win32_path, const char *posix_path, unsigned flags)
 							   dev, &conv_flags);
 	      if (error || strlen (w32_path) >= MAX_PATH)
 		return true;
-	      if ((flags & ~MOUNT_SYSTEM) == (MOUNT_BIND | MOUNT_BINARY))
+	      if ((flags & ~MOUNT_SYSTEM) == MOUNT_BIND)
 		flags = (MOUNT_BIND | conv_flags)
 			& ~(MOUNT_IMMUTABLE | MOUNT_AUTOMATIC);
 	    }

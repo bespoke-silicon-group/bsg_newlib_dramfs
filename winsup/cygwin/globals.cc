@@ -20,13 +20,13 @@ HANDLE NO_COPY hProcImpToken;
 HANDLE my_wr_proc_pipe;
 HMODULE NO_COPY cygwin_hmodule;
 HMODULE NO_COPY hntdll;
-int NO_COPY sigExeced;
+LONG NO_COPY sigExeced;
 WCHAR windows_system_directory[MAX_PATH];
 UINT windows_system_directory_length;
-#ifdef __i386__
-WCHAR system_wow64_directory[MAX_PATH];
-UINT system_wow64_directory_length;
-#endif /* __i386__ */
+WCHAR windows_directory_buf[MAX_PATH];
+PWCHAR windows_directory = windows_directory_buf + 4;
+UINT windows_directory_length;
+UNICODE_STRING windows_directory_path;
 WCHAR global_progname[NT_MAX_PATH];
 
 /* program exit the program */
@@ -51,11 +51,12 @@ enum exit_states
    "winsymlinks" setting of the CYGWIN environment variable. */
 enum winsym_t
 {
-  WSYM_sysfile = 0,
+  WSYM_default = 0,
   WSYM_lnk,
   WSYM_native,
   WSYM_nativestrict,
-  WSYM_nfs
+  WSYM_nfs,
+  WSYM_sysfile,
 };
 
 exit_states NO_COPY exit_state;
@@ -65,12 +66,12 @@ int NO_COPY dynamically_loaded;
 
 /* Some CYGWIN environment variable variables. */
 bool allow_glob = true;
-bool dos_file_warning;
 bool ignore_case_with_glob;
-bool pipe_byte;
+bool pipe_byte = true; /* Default to byte mode so that C# programs work. */
 bool reset_com;
 bool wincmdln;
-winsym_t allow_winsymlinks = WSYM_sysfile;
+winsym_t allow_winsymlinks = WSYM_default;
+bool disable_pcon;
 
 bool NO_COPY in_forkee;
 
@@ -95,9 +96,6 @@ char NO_COPY almost_null[1];
 
 extern "C" {
 
-/* We never have a collate load error. */
-const int __collate_load_error = 0;
-
   /* Heavily-used const UNICODE_STRINGs are defined here once.  The idea is a
      speed improvement by not having to initialize a UNICODE_STRING every time
      we make a string comparison.  The _RDATA trick allows defining the strings
@@ -119,8 +117,6 @@ const int __collate_load_error = 0;
   extern UNICODE_STRING _RDATA ro_u_empty = _ROU (L"");
   extern UNICODE_STRING _RDATA ro_u_lnk = _ROU (L".lnk");
   extern UNICODE_STRING _RDATA ro_u_exe = _ROU (L".exe");
-  extern UNICODE_STRING _RDATA ro_u_dll = _ROU (L".dll");
-  extern UNICODE_STRING _RDATA ro_u_com = _ROU (L".com");
   extern UNICODE_STRING _RDATA ro_u_scr = _ROU (L".scr");
   extern UNICODE_STRING _RDATA ro_u_sys = _ROU (L".sys");
   extern UNICODE_STRING _RDATA ro_u_proc = _ROU (L"proc");
@@ -151,14 +147,10 @@ const int __collate_load_error = 0;
   extern UNICODE_STRING _RDATA ro_u_natsyml = _ROU (L"SymbolicLink");
   extern UNICODE_STRING _RDATA ro_u_natdev = _ROU (L"Device");
   extern UNICODE_STRING _RDATA ro_u_npfs = _ROU (L"\\Device\\NamedPipe\\");
+  extern UNICODE_STRING _RDATA ro_u_mq_suffix = _ROU (L":mqueue");
   #undef _ROU
 
-  /* This is an exported copy of environ which can be used by DLLs
-     which use cygwin.dll.  */
-  char **__cygwin_environ;
-#ifdef __i386__
-  char ***main_environ = &__cygwin_environ;
-#endif
+  char **environ;
   /* __progname used in getopt error message */
   char *__progname;
   char *program_invocation_name;
@@ -169,9 +161,6 @@ const int __collate_load_error = 0;
    /* dll_major */ CYGWIN_VERSION_DLL_MAJOR,
    /* dll_major */ CYGWIN_VERSION_DLL_MINOR,
    /* impure_ptr_ptr */ NULL,
-#ifdef __i386__
-   /* envptr */ NULL,
-#endif
    /* malloc */ malloc, /* free */ free,
    /* realloc */ realloc,
    /* fmode_ptr */ NULL, /* main */ NULL, /* ctors */ NULL,
