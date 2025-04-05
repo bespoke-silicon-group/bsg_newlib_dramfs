@@ -47,6 +47,9 @@ host_makefile_frag=${srcdir}/config/default.mh
 target_makefile_frag=${srcdir}/config/default.mt
 
 case "${target}" in
+  *-*-*dramfs)
+        AC_CONFIG_SUBDIRS([dramfs])
+        ;;
   aarch64*-*-*)
 	config_aarch64=true
 	config_testsuite=true
