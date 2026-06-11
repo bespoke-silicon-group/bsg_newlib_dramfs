@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <string.h>
+#include <stdlib.h>
 #include "dramfs_util.h"
 
 int is_file(const char* path) {
